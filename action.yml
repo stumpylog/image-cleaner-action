@@ -1,0 +1,30 @@
+name: 'Ephemeral Image Cleaner'
+description: 'A GitHub Action that cleans up the ghco.io registry of old images, once the image source is gone'
+inputs:
+  num:
+    description: 'Enter a number'
+    required: true
+    default: "1"
+outputs:
+  num_squared:
+    description: 'Square of the input'
+    # need to specify the extra `value` field for `composite` actions
+    value: ${{ steps.get-square.outputs.num_squared }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: Install Dependencies
+      run: pip install -r requirements.txt
+      shell: bash
+    - name: Pass Inputs to Shell
+      run: |
+              echo "INPUT_NUM=${{ inputs.num }}" >> $GITHUB_ENV
+      shell: bash
+    - name: Fetch the number's square
+      id: get-square
+      run: python src/get_num_square.py
+      shell: bash
