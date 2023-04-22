@@ -1,30 +1,52 @@
 name: 'Ephemeral Image Cleaner'
-description: 'A GitHub Action that cleans up the ghco.io registry of old images, once the image source is gone'
+description: 'A GitHub Action that cleans up the ghcr.io registry of old images, once the image source is gone'
 inputs:
-  num:
-    description: 'Enter a number'
+  scheme:
+    description: 'Choose the image naming scheme'
     required: true
-    default: "1"
-outputs:
-  num_squared:
-    description: 'Square of the input'
-    # need to specify the extra `value` field for `composite` actions
-    value: ${{ steps.get-square.outputs.num_squared }}
+    default: "branch"
+  package_name:
+    description: 'The name of the container package to clean'
+    required: true
+  do_delete:
+    description: 'If true, actually delete packages'
+    required: true
 runs:
   using: 'composite'
   steps:
-    - name: Install Python
+    -
+      name: Install Python
       uses: actions/setup-python@v4
+      id: setup-python
       with:
         python-version: '3.10'
-    - name: Install Dependencies
-      run: pip install -r requirements.txt
+        cache: "pipenv"
+        cache-dependency-path: 'Pipfile.lock'
+    -
+      name: Install pipenv
       shell: bash
-    - name: Pass Inputs to Shell
       run: |
-              echo "INPUT_NUM=${{ inputs.num }}" >> $GITHUB_ENV
+        pip install --user pipenv==2023.3.20
+    -
+      name: Install dependencies
       shell: bash
-    - name: Fetch the number's square
+      run: |
+        pipenv --python ${{ steps.setup-python.outputs.python-version }} sync
+    -
+      name: List installed dependencies
+      shell: bash
+      run: |
+        pipenv --python ${{ steps.setup-python.outputs.python-version }} run pip list
+    -
+      name: Pass Inputs to Environment
+      shell: bash
+      run: |
+        echo "INPUT_SCHEME=${{ inputs.scheme }}" >> $GITHUB_ENV
+        echo "INPUT_PACKAGE=${{ inputs.package_name }}" >> $GITHUB_ENV
+        echo "INPUT_DO_DELETE=${{ inputs.do_delete }}" >> $GITHUB_ENV
+    -
+      name: Fetch the number's square
+      shell: bash
       id: get-square
-      run: python src/get_num_square.py
-      shell: bash
+      run: |
+        pipenv --python ${{ steps.setup-python.outputs.python-version }} run main.py
