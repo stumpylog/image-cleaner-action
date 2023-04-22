@@ -2,15 +2,25 @@ name: 'Ephemeral Image Cleaner'
 description: 'A GitHub Action that cleans up the ghcr.io registry of old images, once the image source is gone'
 inputs:
   scheme:
-    description: 'Choose the image naming scheme'
+    description: 'Choose the image naming scheme either "branch" or "pull_request"'
     required: true
     default: "branch"
   package_name:
     description: 'The name of the container package to clean'
     required: true
+  is_org:
+    description: 'True if the package owner is an organization, False otherwise'
+    required: true
+    default: "false"
+  tag_match_regex:
+    description: 'The regular expression to use for matching your temporary image tagging scheme'
+    required: true
   do_delete:
     description: 'If true, actually delete packages'
     required: true
+  log_level:
+    description: 'Control the log level'
+    default: "info"
 runs:
   using: 'composite'
   steps:
@@ -38,15 +48,14 @@ runs:
       run: |
         pipenv --python ${{ steps.setup-python.outputs.python-version }} run pip list
     -
-      name: Pass Inputs to Environment
-      shell: bash
-      run: |
-        echo "INPUT_SCHEME=${{ inputs.scheme }}" >> $GITHUB_ENV
-        echo "INPUT_PACKAGE=${{ inputs.package_name }}" >> $GITHUB_ENV
-        echo "INPUT_DO_DELETE=${{ inputs.do_delete }}" >> $GITHUB_ENV
-    -
       name: Fetch the number's square
       shell: bash
       id: get-square
       run: |
-        pipenv --python ${{ steps.setup-python.outputs.python-version }} run main.py
+        pipenv --python ${{ steps.setup-python.outputs.python-version }} run \
+          main.py \
+            --scheme ${{ inputs.scheme }} \
+            --loglevel ${{ inputs.log_level }} \
+            --regex-str ${{ inputs.tag_match_regex }} \
+            --name ${{ inputs.package_name }} \
+            --is-org ${{ inputs.is_org }}
