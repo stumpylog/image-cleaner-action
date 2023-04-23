@@ -52,7 +52,7 @@ def _main() -> None:
         help="The owner of the package, either the user or the org",
     )
 
-    # Get the name of the package owner
+    # Get the PAT token
     parser.add_argument(
         "--token",
         help="Personal Access Token with the OAuth scope for packages:delete",

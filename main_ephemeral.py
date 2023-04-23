@@ -1,14 +1,68 @@
 #!/usr/bin/env python3
 
 import logging
+import re
 from argparse import ArgumentParser
 from pathlib import Path
 
+from github.branches import GithubBranchApi
+from github.packages import ContainerPackage
+from github.packages import GithubContainerRegistryApi
+from github.pullrequest import GithubPullRequestApi
 from github.ratelimit import GithubRateLimitApi
+from regtools.images import check_tag_still_valid
 from utils import coerce_to_bool
 from utils import get_log_level
 
 logger = logging.getLogger("image-cleaner")
+
+
+def _get_tags_to_delete_pull_request(
+    args,
+    matched_packages: list[ContainerPackage],
+) -> list[str]:
+    pkgs_with_closed_pr = []
+
+    with GithubPullRequestApi(args.token) as api:
+        for pkg in matched_packages:
+            # Don't consider images tagged with more than 1 then
+            if len(pkg.tags) > 1:
+                continue
+            match = re.match(args.match_regex, pkg.tags[0])
+            if match is not None:
+                # use the first not None capture group as the PR number
+                for x in match.groups():
+                    if x is not None:
+                        pr_number = int(x)
+                        break
+                if api.get(args.owner, args.repo, pr_number).closed:
+                    pkgs_with_closed_pr.append(pkg)
+
+    return [x.tags[0] for x in pkgs_with_closed_pr]
+
+
+def _get_tag_to_delete_branch(
+    args,
+    matched_packages: list[ContainerPackage],
+) -> list[str]:
+    pkg_tags_to_version = {}
+    for pkg in matched_packages:
+        if len(pkg.tags) > 1:
+            continue
+        for tag in pkg.tags:
+            pkg_tags_to_version[tag] = pkg
+
+    logger.info(f"Found {len(pkg_tags_to_version)} tags to consider")
+
+    branches_matching_re = {}
+    with GithubBranchApi(args.token) as api:
+        for branch in api.branches(args.owner, args.repo):
+            if branch.matches(args.match_regex):
+                branches_matching_re[branch.name] = branch
+
+    logger.info(f"Found {len(branches_matching_re)} branches to consider")
+
+    return list(set(pkg_tags_to_version.keys()) - set(branches_matching_re.keys()))
 
 
 def _main() -> None:
@@ -28,8 +82,15 @@ def _main() -> None:
         help="If provided, actually delete the container tags",
     )
 
+    # Get the PAT token
     parser.add_argument(
-        "--regex-str",
+        "--token",
+        help="Personal Access Token with the OAuth scope for packages:delete",
+        default=token,
+    )
+
+    parser.add_argument(
+        "--match-regex",
         help="Regular expression to filter matching image tags",
     )
 
@@ -52,17 +113,34 @@ def _main() -> None:
         help="The package to process",
     )
 
+    # Get the name of the package owner
+    parser.add_argument(
+        "--owner",
+        help="The owner of the package, either the user or the org",
+    )
+
+    parser.add_argument(
+        "--repo",
+        help="The owner of the package, either the user or the org",
+    )
+
+    parser.add_argument(
+        "--scheme",
+        help="The owner of the package, either the user or the org",
+    )
+
     args = parser.parse_args()
 
     args.delete = coerce_to_bool(args.delete)
     args.is_org = coerce_to_bool(args.is_org)
 
     logging.basicConfig(
-        level=get_log_level(args),
+        level=get_log_level(args.loglevel),
         datefmt="%Y-%m-%d %H:%M:%S",
         format="[%(asctime)s] [%(levelname)-8s] [%(name)-10s] %(message)s",
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     logger.info("Starting processing")
 
@@ -75,6 +153,59 @@ def _main() -> None:
             return
         else:
             logger.info(f"Rate limits are good: {current_limits}")
+
+    #
+    # Step 1 - gather the active package information
+    #
+    with GithubContainerRegistryApi(args.token, args.owner, args.is_org) as api:
+        # Get the active (not deleted) packages
+        active_versions = api.active_versions(args.name)
+
+    pkgs_matching_re: list[ContainerPackage] = []
+    all_pkgs_tags_to_version = {}
+    for pkg in active_versions:
+        if pkg.untagged:
+            continue
+        if pkg.tag_matches(args.match_regex):
+            pkgs_matching_re.append(pkg)
+        for tag in pkg.tags:
+            all_pkgs_tags_to_version[tag] = pkg
+
+    if not len(pkgs_matching_re):
+        logger.info("No packages to consider")
+        return
+    else:
+        logger.info(f"Found {len(pkgs_matching_re)} packages to consider")
+
+    if args.scheme == "branch":
+        tags_to_delete = _get_tag_to_delete_branch(args, pkgs_matching_re)
+    elif args.scheme == "pull_request":
+        tags_to_delete = _get_tags_to_delete_pull_request(args, pkgs_matching_re)
+
+    tags_to_keep = list(set(all_pkgs_tags_to_version.keys()) - set(tags_to_delete))
+
+    if not len(tags_to_delete):
+        logger.info("No images to remove")
+        return
+
+    with GithubContainerRegistryApi(args.token, args.owner, args.is_org) as api:
+        for to_delete_name in tags_to_delete:
+            to_delete_version = all_pkgs_tags_to_version[to_delete_name]
+
+            if args.delete:
+                logger.info(
+                    f"Deleting id {to_delete_version.id} named {to_delete_version.name}",
+                )
+                api.delete(
+                    to_delete_version,
+                )
+            else:
+                logger.info(
+                    f"Would delete {to_delete_name} (id {to_delete_version.id})",
+                )
+
+    for tag in tags_to_keep:
+        check_tag_still_valid(args.owner, args.name, tag)
 
 
 if __name__ == "__main__":

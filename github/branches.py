@@ -1,4 +1,6 @@
+import functools
 import logging
+import re
 
 from github.base import GithubApiBase
 from github.base import GithubEndpointResponse
@@ -18,6 +20,10 @@ class GithubBranch(GithubEndpointResponse):
 
     def __str__(self) -> str:
         return f"Branch {self.name}"
+
+    @functools.cache
+    def matches(self, pattern: str) -> bool:
+        return re.match(pattern, self.name) is not None
 
 
 class GithubBranchApi(GithubApiBase):
