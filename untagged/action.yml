@@ -39,22 +39,24 @@ runs:
       name: Install dependencies
       shell: bash
       run: |
-        cd ${{ github.action_path }}
+        cd ${{ github.action_path }}/..
         pipenv --python ${{ steps.setup-python.outputs.python-version }} sync
     -
       name: List installed dependencies
       shell: bash
       run: |
-        cd ${{ github.action_path }}
+        cd ${{ github.action_path }}/..
         pipenv --python ${{ steps.setup-python.outputs.python-version }} run pip list
     -
       name: Clean the images
       shell: bash
       id: get-square
       run: |
-        cd  ${{ github.action_path }}
-        pipenv --python ${{ steps.setup-python.outputs.python-version }} run \
-           ${{ github.action_path }}/main.py \
+        cd  ${{ github.action_path }}/..
+        pipenv \
+          --python ${{ steps.setup-python.outputs.python-version }} \
+          run \
+            ${{ github.action_path }}/../main_untagged.py \
             --token ${{ inputs.token }} \
             --owner ${{ inputs.owner }} \
             --is-org ${{ inputs.is_org }} \

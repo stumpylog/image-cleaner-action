@@ -5,37 +5,10 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from github.ratelimit import GithubRateLimitApi
+from utils import coerce_to_bool
+from utils import get_log_level
 
 logger = logging.getLogger("image-cleaner")
-
-
-def get_log_level(args) -> int:
-    """
-    Returns a logging level, based
-    :param args:
-    :return:
-    """
-    levels = {
-        "critical": logging.CRITICAL,
-        "error": logging.ERROR,
-        "warn": logging.WARNING,
-        "warning": logging.WARNING,
-        "info": logging.INFO,
-        "debug": logging.DEBUG,
-    }
-    level = levels.get(args.loglevel.lower())
-    if level is None:
-        level = logging.INFO
-    return level
-
-
-def coerce_to_bool(value) -> bool:
-    if not isinstance(value, bool):
-        if isinstance(value, str):
-            return value.lower() in {"true", "1"}
-        else:
-            raise TypeError(type(value))
-    return value
 
 
 def _main() -> None:

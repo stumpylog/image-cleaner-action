@@ -30,8 +30,6 @@ runs:
       id: setup-python
       with:
         python-version: '3.10'
-        cache: "pipenv"
-        cache-dependency-path: 'Pipfile.lock'
     -
       name: Install pipenv
       shell: bash
@@ -41,21 +39,27 @@ runs:
       name: Install dependencies
       shell: bash
       run: |
+        cd ${{ github.action_path }}/..
         pipenv --python ${{ steps.setup-python.outputs.python-version }} sync
     -
       name: List installed dependencies
       shell: bash
       run: |
+        cd ${{ github.action_path }}/..
         pipenv --python ${{ steps.setup-python.outputs.python-version }} run pip list
     -
-      name: Fetch the number's square
+      name: Clean the images
       shell: bash
       id: get-square
       run: |
-        pipenv --python ${{ steps.setup-python.outputs.python-version }} run \
-          main.py \
-            --scheme ${{ inputs.scheme }} \
-            --loglevel ${{ inputs.log_level }} \
-            --regex-str ${{ inputs.tag_match_regex }} \
+        cd  ${{ github.action_path }}/..
+        pipenv \
+          --python ${{ steps.setup-python.outputs.python-version }} \
+          run \
+            ${{ github.action_path }}/../main_ephemeral.py \
+            --token ${{ inputs.token }} \
+            --owner ${{ inputs.owner }} \
+            --is-org ${{ inputs.is_org }} \
             --name ${{ inputs.package_name }} \
-            --is-org ${{ inputs.is_org }}
+            --delete ${{ inputs.do_delete }} \
+            --loglevel ${{ inputs.log_level }}
