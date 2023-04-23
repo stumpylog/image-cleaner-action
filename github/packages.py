@@ -46,7 +46,7 @@ class ContainerPackage(GithubEndpointResponse):
         """
         return not self.untagged
 
-    @functools.cache
+    @functools.lru_cache
     def tag_matches(self, pattern: str) -> bool:
         """
         Returns True if the image has at least one tag which matches the given regex,
