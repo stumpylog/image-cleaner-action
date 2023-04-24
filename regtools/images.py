@@ -3,6 +3,7 @@ import json
 import logging
 import shutil
 import subprocess
+import time
 from collections.abc import Iterator
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,7 @@ class ImageIndexInfo:
                 if "i/o timeout" in stderr_str:
                     logger.warning("i/o timeout, retrying")
                     retry_count += 1
+                    time.sleep(0.5)
                     continue
                 # Not a known error, raise
                 logger.error(
@@ -86,7 +88,7 @@ class ImageIndexInfo:
                 )
                 raise e
         if self._data is None:
-            raise TimeoutError
+            raise TimeoutError(f"Failed to get image index for {self.qualified_name}")
 
     @functools.cached_property
     def is_multi_arch(self) -> bool:
