@@ -32,8 +32,8 @@ class Config:
         # Validate
         if self.scheme not in {"branch", "pull_request"}:
             raise ValueError(f"{self.scheme} is not a valid option")
-
-        re.compile(self.match_regex)
+        if len(self.match_regex):
+            re.compile(self.match_regex)
 
 
 def _get_tags_to_delete_pull_request(
