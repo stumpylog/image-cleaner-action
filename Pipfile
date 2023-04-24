@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-httpx = "*"
+httpx = {version = "*", extras = ["http2", "brotli"]}
 
 [dev-packages]
 ruff = "*"
