@@ -46,7 +46,7 @@ runs:
       shell: bash
       run: |
         cd ${{ github.action_path }}/..
-        pipenv --quiet--python ${{ steps.setup-python.outputs.python-version }} run pip list
+        pipenv --quiet --python ${{ steps.setup-python.outputs.python-version }} run pip list
     -
       name: Clean the images
       shell: bash
