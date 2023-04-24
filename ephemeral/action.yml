@@ -68,12 +68,12 @@ runs:
           --python ${{ steps.setup-python.outputs.python-version }} \
           run \
             ${{ github.action_path }}/../main_ephemeral.py \
-            --token ${{ inputs.token }} \
-            --owner ${{ inputs.owner }} \
-            --scheme ${{ inputs.scheme }} \
-            --match-regex ${{ inputs.match_regex }} \
-            --is-org ${{ inputs.is_org }} \
-            --name ${{ inputs.package_name }} \
-            --delete ${{ inputs.do_delete }} \
-            --loglevel ${{ inputs.log_level }} \
-            --repo ${{ inputs.repo_name }}
+            --token "${{ inputs.token }}" \
+            --owner "${{ inputs.owner }}" \
+            --scheme "${{ inputs.scheme }}" \
+            --match-regex "${{ inputs.match_regex }}" \
+            --is-org "${{ inputs.is_org }}" \
+            --name "${{ inputs.package_name }}" \
+            --delete "${{ inputs.do_delete }}" \
+            --loglevel "${{ inputs.log_level }}" \
+            --repo "${{ inputs.repo_name }}"

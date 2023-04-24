@@ -57,9 +57,9 @@ runs:
           --python ${{ steps.setup-python.outputs.python-version }} \
           run \
             ${{ github.action_path }}/../main_untagged.py \
-            --token ${{ inputs.token }} \
-            --owner ${{ inputs.owner }} \
-            --is-org ${{ inputs.is_org }} \
-            --name ${{ inputs.package_name }} \
-            --delete ${{ inputs.do_delete }} \
-            --loglevel ${{ inputs.log_level }}
+            --token "${{ inputs.token }}" \
+            --owner "${{ inputs.owner }}" \
+            --is-org "${{ inputs.is_org }}" \
+            --name "${{ inputs.package_name }}" \
+            --delete "${{ inputs.do_delete }}" \
+            --loglevel "${{ inputs.log_level }}"
