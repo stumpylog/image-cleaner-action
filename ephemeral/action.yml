@@ -45,26 +45,26 @@ runs:
       name: Install pipenv
       shell: bash
       run: |
-        pip install --user pipenv==2023.4.20
+        pip3 --quiet install --user pipenv==2023.4.20
     -
       name: Install dependencies
       shell: bash
       run: |
         cd ${{ github.action_path }}/..
-        pipenv --python ${{ steps.setup-python.outputs.python-version }} sync
+        pipenv --quiet --python ${{ steps.setup-python.outputs.python-version }} sync
     -
       name: List installed dependencies
       shell: bash
       run: |
         cd ${{ github.action_path }}/..
-        pipenv --python ${{ steps.setup-python.outputs.python-version }} run pip list
+        pipenv --quiet --python ${{ steps.setup-python.outputs.python-version }} run pip list
     -
       name: Clean the images
       shell: bash
       id: get-square
       run: |
         cd  ${{ github.action_path }}/..
-        pipenv \
+        pipenv --quiet \
           --python ${{ steps.setup-python.outputs.python-version }} \
           run \
             ${{ github.action_path }}/../main_ephemeral.py \
