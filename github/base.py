@@ -28,7 +28,7 @@ class GithubApiBase:
         Sets up the required headers for auth and response
         type from the API
         """
-        self._client = httpx.Client()
+        self._client = httpx.Client(timeout=30.0)
         self._client.headers.update(
             {
                 "Accept": "application/vnd.github.v3+json",

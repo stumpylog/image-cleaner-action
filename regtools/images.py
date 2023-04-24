@@ -46,9 +46,11 @@ class ImageIndexInfo:
     """
 
     def __init__(self, package_url: str, tag: str) -> None:
+        self._data = None
         self.qualified_name = f"{package_url}:{tag}"
         logger.info(f"Getting image index for {self.qualified_name}")
-        try:
+
+        def _call_docker_inspect():
             proc = subprocess.run(
                 [
                     shutil.which("docker"),
@@ -64,11 +66,27 @@ class ImageIndexInfo:
 
             self._data = json.loads(proc.stdout)
 
-        except subprocess.CalledProcessError as e:
-            logger.error(
-                f"Failed to get image index for {self.qualified_name}: {e.stderr}",
-            )
-            raise e
+        retry_count = 0
+        max_retries = 3
+
+        while (retry_count < max_retries) and self._data is None:
+            try:
+                _call_docker_inspect()
+
+            except subprocess.CalledProcessError as e:
+                # Check for an i/o error and retry if so
+                stderr_str = e.stderr.decode("ascii", "ignore")
+                if "i/o timeout" in stderr_str:
+                    logger.warning("i/o timeout, retrying")
+                    retry_count += 1
+                    continue
+                # Not a known error, raise
+                logger.error(
+                    f"Failed to get image index for {self.qualified_name}: {e.stderr}",
+                )
+                raise e
+        if self._data is None:
+            raise TimeoutError
 
     @functools.cached_property
     def is_multi_arch(self) -> bool:

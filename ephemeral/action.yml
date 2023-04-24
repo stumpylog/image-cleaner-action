@@ -23,7 +23,7 @@ inputs:
     default: "branch"
   match_regex:
     description: 'The regular expression to use for matching your temporary image tagging scheme'
-    required: false
+    required: true
     default: "$^"
   do_delete:
     description: 'If true, actually delete packages'
