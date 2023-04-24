@@ -34,7 +34,7 @@ runs:
       name: Install pipenv
       shell: bash
       run: |
-        pip install --user pipenv==2023.3.20
+        pip install --user pipenv==2023.4.20
     -
       name: Install dependencies
       shell: bash
