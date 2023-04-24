@@ -9,6 +9,44 @@ from collections.abc import Iterator
 logger = logging.getLogger(__name__)
 
 
+def _handle_docker_inspect_with_timeout(name: str) -> dict:
+    retry_count = 0
+    max_retries = 3
+    wait_time_s = 0.5
+    data = None
+    while (retry_count < max_retries) and data is None:
+        try:
+            proc = subprocess.run(
+                [
+                    shutil.which("docker"),
+                    "buildx",
+                    "imagetools",
+                    "inspect",
+                    "--raw",
+                    name,
+                ],
+                capture_output=True,
+                check=True,
+            )
+            data = json.loads(proc.stdout)
+        except subprocess.CalledProcessError as e:
+            # Check for an i/o error and retry if so
+            stderr_str = e.stderr.decode("ascii", "ignore")
+            if "i/o timeout" in stderr_str:
+                logger.warning("i/o timeout, retrying")
+                retry_count += 1
+                time.sleep(wait_time_s)
+                continue
+            # Not a known error, raise
+            logger.error(
+                f"Failed to get inspect {name}: {stderr_str}",
+            )
+            raise e
+    if data is None:
+        raise TimeoutError(f"Failed to get inspect {name}")
+    return data
+
+
 class BaseImageProperties:
     def __init__(self, data: dict) -> None:
         self._data = data
@@ -47,48 +85,10 @@ class ImageIndexInfo:
     """
 
     def __init__(self, package_url: str, tag: str) -> None:
-        self._data = None
         self.qualified_name = f"{package_url}:{tag}"
         logger.info(f"Getting image index for {self.qualified_name}")
 
-        def _call_docker_inspect():
-            proc = subprocess.run(
-                [
-                    shutil.which("docker"),
-                    "buildx",
-                    "imagetools",
-                    "inspect",
-                    "--raw",
-                    self.qualified_name,
-                ],
-                capture_output=True,
-                check=True,
-            )
-
-            self._data = json.loads(proc.stdout)
-
-        retry_count = 0
-        max_retries = 3
-
-        while (retry_count < max_retries) and self._data is None:
-            try:
-                _call_docker_inspect()
-
-            except subprocess.CalledProcessError as e:
-                # Check for an i/o error and retry if so
-                stderr_str = e.stderr.decode("ascii", "ignore")
-                if "i/o timeout" in stderr_str:
-                    logger.warning("i/o timeout, retrying")
-                    retry_count += 1
-                    time.sleep(0.5)
-                    continue
-                # Not a known error, raise
-                logger.error(
-                    f"Failed to get image index for {self.qualified_name}: {e.stderr}",
-                )
-                raise e
-        if self._data is None:
-            raise TimeoutError(f"Failed to get image index for {self.qualified_name}")
+        self._data = _handle_docker_inspect_with_timeout(self.qualified_name)
 
     @functools.cached_property
     def is_multi_arch(self) -> bool:
@@ -118,22 +118,10 @@ def check_tag_still_valid(owner: str, name: str, tag: str):
     """
 
     def _check_image(full_name: str) -> bool:
-        failed = False
         try:
-            subprocess.run(
-                [
-                    shutil.which("docker"),
-                    "buildx",
-                    "imagetools",
-                    "inspect",
-                    "--raw",
-                    full_name,
-                ],
-                capture_output=True,
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to inspect digest: {e.stderr}")
+            _handle_docker_inspect_with_timeout(full_name)
+            failed = False
+        except (TimeoutError, subprocess.CalledProcessError):
             failed = True
         return failed
 
