@@ -100,11 +100,17 @@ class GithubContainerRegistryApi(GithubApiBase):
             PACKAGE_TYPE=package_type,
             PACKAGE_NAME=package_name,
         )
+        # Filter to the requested, if any
         if active is not None:
             if active:
                 endpoint += "?state=active"
             else:
                 endpoint += "?state=deleted"
+        # Request the max allowed
+        if active is not None:
+            endpoint += "&per_page=100"
+        else:
+            endpoint += "?per_page=100"
 
         pkgs = []
 
