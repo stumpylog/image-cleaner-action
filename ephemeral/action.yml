@@ -28,6 +28,7 @@ inputs:
   do_delete:
     description: 'If true, actually delete packages'
     required: true
+    default: "false"
   log_level:
     description: 'Control the log level'
     default: "info"
