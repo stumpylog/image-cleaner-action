@@ -183,8 +183,9 @@ def _main() -> None:
     # Step 5 - Be really sure the remaining tags look a-ok
     #
     logger.info("Beginning confirmation step")
-    for tag in tags_to_keep:
-        check_tag_still_valid(config.owner_or_org, config.package_name, tag)
+    if config.delete:
+        for tag in tags_to_keep:
+            check_tag_still_valid(config.owner_or_org, config.package_name, tag)
 
 
 if __name__ == "__main__":

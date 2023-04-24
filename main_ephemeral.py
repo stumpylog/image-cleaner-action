@@ -235,8 +235,9 @@ def _main() -> None:
                     f"Would delete {to_delete_name} (id {to_delete_version.id})",
                 )
 
-    for tag in tags_to_keep:
-        check_tag_still_valid(config.owner_or_org, config.package_name, tag)
+    if config.delete:
+        for tag in tags_to_keep:
+            check_tag_still_valid(config.owner_or_org, config.package_name, tag)
 
 
 if __name__ == "__main__":
