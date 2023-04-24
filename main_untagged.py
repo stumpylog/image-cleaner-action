@@ -14,6 +14,16 @@ from utils import get_log_level
 logger = logging.getLogger("image-cleaner")
 
 
+class Config:
+    def __init__(self, args) -> None:
+        self.token: str = args.token
+        self.owner_or_org: str = args.owner
+        self.is_org = coerce_to_bool(args.is_org)
+        self.package_name: str = args.name
+        self.log_level: int = get_log_level(args.loglevel)
+        self.delete: bool = coerce_to_bool(args.delete)
+
+
 def _main() -> None:
     parser = ArgumentParser(
         description="Using the GitHub API locate and optionally delete container"
@@ -58,13 +68,10 @@ def _main() -> None:
         help="Personal Access Token with the OAuth scope for packages:delete",
     )
 
-    args = parser.parse_args()
-
-    args.delete = coerce_to_bool(args.delete)
-    args.is_org = coerce_to_bool(args.is_org)
+    config = Config(parser.parse_args())
 
     logging.basicConfig(
-        level=get_log_level(args.loglevel),
+        level=config.log_level,
         datefmt="%Y-%m-%d %H:%M:%S",
         format="[%(asctime)s] [%(levelname)-8s] [%(name)-10s] %(message)s",
     )
@@ -77,7 +84,7 @@ def _main() -> None:
     #
     # Step 0 - Check how the rate limits are looking
     #
-    with GithubRateLimitApi(args.token) as api:
+    with GithubRateLimitApi(config.token) as api:
         current_limits = api.limits()
         if current_limits.limited:
             logger.error(
@@ -90,9 +97,13 @@ def _main() -> None:
     #
     # Step 1 - gather the active package information
     #
-    with GithubContainerRegistryApi(args.token, args.owner, args.is_org) as api:
+    with GithubContainerRegistryApi(
+        config.token,
+        config.owner_or_org,
+        config.is_org,
+    ) as api:
         # Get the active (not deleted) packages
-        active_versions = api.active_versions(args.name)
+        active_versions = api.active_versions(config.package_name)
 
     # Map the tag (eg latest) to its package and simplify the untagged data
     # mapping name (which is a digest) to the version
@@ -110,11 +121,16 @@ def _main() -> None:
     #
     # We're keeping every tag
     tags_to_keep = list(set(tag_to_pkgs.keys()))
-    logger.info(f"Keeping {len(tags_to_keep)} for {args.name}")
+    logger.info(f"Keeping {len(tags_to_keep)} for {config.package_name}")
     for tag in tags_to_keep:
-        logger.debug(f"Keeping ghcr.io/{args.owner}/{args.name}:{tag}")
+        logger.debug(
+            f"Keeping ghcr.io/{config.owner_or_org}/{config.package_name}:{tag}",
+        )
 
-        index_info = ImageIndexInfo(f"ghcr.io/{args.owner}/{args.name}", tag)
+        index_info = ImageIndexInfo(
+            f"ghcr.io/{config.owner_or_org}/{config.package_name}",
+            tag,
+        )
 
         # These are not pointers.  If untagged, it's actually untagged
         if not index_info.is_multi_arch:
@@ -139,14 +155,18 @@ def _main() -> None:
     # Step 4 - Delete the actually untagged packages
     #
     # Delete the untagged and not pointed at packages
-    logger.info(f"Deleting untagged packages of {args.name}")
+    logger.info(f"Deleting untagged packages of {config.package_name}")
     if not len(untagged_versions):
         logger.info("Nothing to do")
-    with GithubContainerRegistryApi(args.token, args.owner, args.is_org) as api:
+    with GithubContainerRegistryApi(
+        config.token,
+        config.owner_or_org,
+        config.is_org,
+    ) as api:
         for to_delete_name in untagged_versions:
             to_delete_version = untagged_versions[to_delete_name]
 
-            if args.delete:
+            if config.delete:
                 logger.info(
                     f"Deleting id {to_delete_version.id} named {to_delete_version.name}",
                 )
@@ -163,7 +183,7 @@ def _main() -> None:
     #
     logger.info("Beginning confirmation step")
     for tag in tags_to_keep:
-        check_tag_still_valid(args.owner, args.name, tag)
+        check_tag_still_valid(config.owner_or_org, config.package_name, tag)
 
 
 if __name__ == "__main__":
