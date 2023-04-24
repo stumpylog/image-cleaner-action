@@ -3,7 +3,6 @@
 import logging
 import re
 from argparse import ArgumentParser
-from pathlib import Path
 
 from github.branches import GithubBranchApi
 from github.packages import ContainerPackage
@@ -97,10 +96,6 @@ def _get_tag_to_delete_branch(
 
 
 def _main() -> None:
-    # Read token for file for now
-    # Never checked in
-    token = Path("token.txt").read_text().strip()
-
     parser = ArgumentParser(
         description="Using the GitHub API locate and optionally delete container"
         " tags which no longer have an associated branch or pull request",
@@ -172,7 +167,7 @@ def _main() -> None:
 
     logger.info("Starting processing")
 
-    with GithubRateLimitApi(token) as api:
+    with GithubRateLimitApi(config.token) as api:
         current_limits = api.limits()
         if current_limits.limited:
             logger.error(
