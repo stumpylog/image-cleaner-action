@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 def _handle_docker_inspect_with_timeout(name: str) -> dict:
     retry_count = 0
-    max_retries = 3
-    wait_time_s = 0.5
+    max_retries = 4
+    wait_time_s = 5.0
     data = None
     while (retry_count < max_retries) and data is None:
         try:
