@@ -24,7 +24,7 @@ inputs:
   match_regex:
     description: 'The regular expression to use for matching your temporary image tagging scheme'
     required: false
-    default: ""
+    default: "$^"
   do_delete:
     description: 'If true, actually delete packages'
     required: true
