@@ -188,10 +188,16 @@ def _main() -> None:
         # Get the active (not deleted) packages
         active_versions = api.active_versions(config.package_name)
 
+    #
+    # Step 2 - Filter the packages to those which are:
+    #            - tagged
+    #            - tagged with only 1 thing
+    #            - the single tag matches the given regular expression
+    #
     pkgs_matching_re: list[ContainerPackage] = []
     all_pkgs_tags_to_version = {}
     for pkg in active_versions:
-        if pkg.untagged:
+        if pkg.untagged or len(pkg.tags) > 1:
             continue
         if pkg.tag_matches(config.match_regex):
             pkgs_matching_re.append(pkg)
@@ -204,6 +210,9 @@ def _main() -> None:
     else:
         logger.info(f"Found {len(pkgs_matching_re)} packages to consider")
 
+    #
+    # Step 3 - Gather the packages to remove (those where the source is gone or closed)
+    #
     if config.scheme == "branch":
         tags_to_delete = _get_tag_to_delete_branch(config, pkgs_matching_re)
     elif config.scheme == "pull_request":
@@ -215,6 +224,9 @@ def _main() -> None:
         logger.info("No images to remove")
         return
 
+    #
+    # Step 4 - Delete the stale packages
+    #
     with GithubContainerRegistryApi(
         config.token,
         config.owner_or_org,
@@ -235,9 +247,15 @@ def _main() -> None:
                     f"Would delete {to_delete_name} (id {to_delete_version.id})",
                 )
 
+    #
+    # Step 5 - Be really sure the remaining tags look a-ok
+    #
     if config.delete:
+        logger.info("Beginning confirmation step")
         for tag in tags_to_keep:
             check_tag_still_valid(config.owner_or_org, config.package_name, tag)
+    else:
+        logger.info("Dry run, not checking images")
 
 
 if __name__ == "__main__":

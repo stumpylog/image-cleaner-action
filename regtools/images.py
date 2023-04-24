@@ -10,6 +10,13 @@ logger = logging.getLogger(__name__)
 
 
 def _handle_docker_inspect_with_timeout(name: str) -> dict:
+    """
+    docker inspect can sometimes timeout, attempt to handle it with a
+    few retries and a short sleep in between.
+
+    Shout out to Github for having an incident as I was developing the
+    action for the testing help.
+    """
     retry_count = 0
     max_retries = 4
     wait_time_s = 5.0
