@@ -225,7 +225,7 @@ def _main() -> None:
 
             if config.delete:
                 logger.info(
-                    f"Deleting id {to_delete_version.id} named {to_delete_version.name}",
+                    f"Deleting id {to_delete_version.id} named {to_delete_version.package_name}",
                 )
                 api.delete(
                     to_delete_version,
@@ -236,7 +236,7 @@ def _main() -> None:
                 )
 
     for tag in tags_to_keep:
-        check_tag_still_valid(config.owner_or_org, config.name, tag)
+        check_tag_still_valid(config.owner_or_org, config.package_name, tag)
 
 
 if __name__ == "__main__":
