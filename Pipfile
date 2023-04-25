@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 httpx = {version = "*", extras = ["http2", "brotli"]}
+github-action-utils = "*"
 
 [dev-packages]
 ruff = "*"
