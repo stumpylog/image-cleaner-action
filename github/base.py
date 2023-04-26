@@ -8,6 +8,7 @@ is cleaning up container images which are no longer referred to.
 """
 import logging
 
+import github_action_utils as gha_utils
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -52,15 +53,17 @@ class GithubApiBase:
         self._client.close()
         self._client = None
 
-    def _read_all_pages(self, endpoint):
+    def _read_all_pages(self, endpoint: str, query_params: dict | None = None):
         """
         Helper function to read all pages of an endpoint, utilizing the
         next.url until exhausted.  Assumes the endpoint returns a list
         """
         internal_data = []
+        if query_params is None:
+            query_params = {}
 
         while True:
-            resp = self._client.get(endpoint)
+            resp = self._client.get(endpoint, params=query_params)
             if resp.status_code == 200:
                 internal_data += resp.json()
                 if "next" in resp.links:
@@ -69,7 +72,9 @@ class GithubApiBase:
                     logger.debug("Exiting pagination loop")
                     break
             else:
-                logger.warning(f"Request to {endpoint} return HTTP {resp.status_code}")
+                msg = f"Request to {endpoint} return HTTP {resp.status_code}"
+                gha_utils.error(message=msg, title=f"HTTP Error {resp.status_code}")
+                logger.error(msg)
                 resp.raise_for_status()
 
         return internal_data

@@ -195,7 +195,7 @@ def _main() -> None:
     #            - the single tag matches the given regular expression
     #
     pkgs_matching_re: list[ContainerPackage] = []
-    all_pkgs_tags_to_version = {}
+    all_pkgs_tags_to_version: dict[str, ContainerPackage] = {}
     for pkg in active_versions:
         if pkg.untagged or len(pkg.tags) > 1:
             continue
@@ -237,7 +237,7 @@ def _main() -> None:
 
             if config.delete:
                 logger.info(
-                    f"Deleting id {to_delete_version.id} named {to_delete_version.package_name}",
+                    f"Deleting id {to_delete_version.id} named {to_delete_version.name}",
                 )
                 api.delete(
                     to_delete_version,

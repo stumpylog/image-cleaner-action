@@ -3,6 +3,8 @@ import logging
 import re
 import urllib
 
+import github_action_utils as gha_utils
+
 from github.base import GithubApiBase
 from github.base import GithubEndpointResponse
 
@@ -100,21 +102,20 @@ class GithubContainerRegistryApi(GithubApiBase):
             PACKAGE_TYPE=package_type,
             PACKAGE_NAME=package_name,
         )
-        # Filter to the requested, if any
+
+        # Always request the max allowed per page
+        query_params = {"per_page": 100}
+
+        # Filter to the requested state, if any
         if active is not None:
             if active:
-                endpoint += "?state=active"
+                query_params["state"] = "active"
             else:
-                endpoint += "?state=deleted"
-        # Request the max allowed
-        if active is not None:
-            endpoint += "&per_page=100"
-        else:
-            endpoint += "?per_page=100"
+                query_params["state"] = "deleted"
 
         pkgs = []
 
-        for data in self._read_all_pages(endpoint):
+        for data in self._read_all_pages(endpoint, query_params=query_params):
             pkgs.append(ContainerPackage(data))
 
         return pkgs
@@ -137,11 +138,16 @@ class GithubContainerRegistryApi(GithubApiBase):
         """
         resp = self._client.delete(package_data.url)
         if resp.status_code != 204:
-            logger.warning(
-                f"Request to delete {package_data.url} returned HTTP {resp.status_code}",
+            msg = (
+                f"Request to delete {package_data.url} returned HTTP {resp.status_code}"
             )
+            gha_utils.warning(
+                message=msg,
+                title=f"Unexpected delete status: {resp.status}",
+            )
+            logger.warning(msg)
 
-    def report(
+    def restore(
         self,
         package_name: str,
         id: int,
@@ -156,6 +162,9 @@ class GithubContainerRegistryApi(GithubApiBase):
 
         resp = self._client.post(endpoint)
         if resp.status_code != 204:
-            logger.warning(
-                f"Request to delete {endpoint} returned HTTP {resp.status_code}",
+            msg = f"Request to restore id {id} returned HTTP {resp.status_code}"
+            gha_utils.warning(
+                message=msg,
+                title=f"Unexpected restore status: {resp.status}",
             )
+            logger.warning(msg)

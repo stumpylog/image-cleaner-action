@@ -6,6 +6,8 @@ import subprocess
 import time
 from collections.abc import Iterator
 
+import github_action_utils as gha_utils
+
 logger = logging.getLogger(__name__)
 
 
@@ -50,7 +52,9 @@ def _handle_docker_inspect_with_timeout(name: str) -> dict:
             )
             raise e
     if data is None:
-        raise TimeoutError(f"Failed to get inspect {name}")
+        msg = f"Failed to get inspect {name}"
+        gha_utils.error(message=msg, title="docker inspect failure")
+        raise TimeoutError(msg)
     return data
 
 
@@ -154,4 +158,9 @@ def check_tag_still_valid(owner: str, name: str, tag: str):
                 logger.error("Failed to inspect digest")
 
     if a_tag_failed:
-        raise Exception(f"tag {image_index.qualified_name} failed to inspect")
+        msg = f"tag {image_index.qualified_name} failed to inspect, may be no longer valid"
+        gha_utils.error(
+            message=msg,
+            title=f"Verification failure: {image_index.qualified_name}",
+        )
+        raise Exception(msg)
