@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
 import logging
-from argparse import ArgumentParser
 
 from github.packages import ContainerPackage
-from github.packages import GithubContainerRegistryApi
+from github.packages import GithubContainerRegistryOrgApi
+from github.packages import GithubContainerRegistryUserApi
 from github.ratelimit import GithubRateLimitApi
 from regtools.images import ImageIndexInfo
 from regtools.images import check_tag_still_valid
 from utils import coerce_to_bool
+from utils import common_args
 from utils import get_log_level
 
 logger = logging.getLogger("image-cleaner")
@@ -25,48 +26,9 @@ class Config:
 
 
 def _main() -> None:
-    parser = ArgumentParser(
-        description="Using the GitHub API locate and optionally delete container"
+    parser = common_args(
+        "Using the GitHub API locate and optionally delete container"
         "images which are untagged",
-    )
-
-    # Get the PAT token
-    parser.add_argument(
-        "--token",
-        help="Personal Access Token with the OAuth scope for packages:delete",
-    )
-
-    # Requires an affirmative command to actually do a delete
-    parser.add_argument(
-        "--delete",
-        default=False,
-        help="If provided, actually delete the container tags",
-    )
-
-    # Get the name of the package owner
-    parser.add_argument(
-        "--owner",
-        help="The owner of the package, either the user or the org",
-    )
-
-    # If true, the owner is an organization
-    parser.add_argument(
-        "--is-org",
-        default=False,
-        help="If True, the owner of the package is an organization",
-    )
-
-    # Get the name of the package being processed this round
-    parser.add_argument(
-        "--name",
-        help="The package to process",
-    )
-
-    # Allows configuration of log level for debugging
-    parser.add_argument(
-        "--loglevel",
-        default="info",
-        help="Configures the logging level",
     )
 
     config = Config(parser.parse_args())
@@ -98,7 +60,12 @@ def _main() -> None:
     #
     # Step 1 - gather the active package information
     #
-    with GithubContainerRegistryApi(
+    container_reg_class = (
+        GithubContainerRegistryOrgApi
+        if config.is_org
+        else GithubContainerRegistryUserApi
+    )
+    with container_reg_class(
         config.token,
         config.owner_or_org,
         config.is_org,
@@ -159,7 +126,7 @@ def _main() -> None:
     logger.info(f"Deleting untagged packages of {config.package_name}")
     if not len(untagged_versions):
         logger.info("Nothing to do")
-    with GithubContainerRegistryApi(
+    with container_reg_class(
         config.token,
         config.owner_or_org,
         config.is_org,

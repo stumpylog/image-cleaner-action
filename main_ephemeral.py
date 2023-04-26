@@ -2,7 +2,6 @@
 
 import logging
 import re
-from argparse import ArgumentParser
 
 from github.branches import GithubBranchApi
 from github.packages import ContainerPackage
@@ -12,6 +11,7 @@ from github.pullrequest import GithubPullRequestApi
 from github.ratelimit import GithubRateLimitApi
 from regtools.images import check_tag_still_valid
 from utils import coerce_to_bool
+from utils import common_args
 from utils import get_log_level
 
 logger = logging.getLogger("image-cleaner")
@@ -97,50 +97,9 @@ def _get_tag_to_delete_branch(
 
 
 def _main() -> None:
-    parser = ArgumentParser(
-        description="Using the GitHub API locate and optionally delete container"
+    parser = common_args(
+        "Using the GitHub API locate and optionally delete container"
         " tags which no longer have an associated branch or pull request",
-    )
-
-    # Get the PAT token
-    parser.add_argument(
-        "--token",
-        help="Personal Access Token with the OAuth scope for packages:delete",
-        required=True,
-    )
-
-    # Requires an affirmative command to actually do a delete
-    parser.add_argument(
-        "--delete",
-        default=False,
-        help="If provided, actually delete the container tags",
-    )
-
-    # Get the name of the package owner
-    parser.add_argument(
-        "--owner",
-        help="The owner of the package, either the user or the org",
-    )
-
-    # If true, the owner is an organization
-    parser.add_argument(
-        "--is-org",
-        default=False,
-        help="If True, the owner of the package is an organization",
-    )
-
-    # Get the name of the package being processed this round
-    parser.add_argument(
-        "--name",
-        help="The package to process",
-        required=True,
-    )
-
-    # Allows configuration of log level for debugging
-    parser.add_argument(
-        "--loglevel",
-        default="info",
-        help="Configures the logging level",
     )
 
     parser.add_argument(

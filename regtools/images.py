@@ -16,13 +16,15 @@ def _handle_docker_inspect_with_timeout(name: str) -> dict:
     docker inspect can sometimes timeout, attempt to handle it with a
     few retries and a short sleep in between.
 
-    Shout out to Github for having an incident as I was developing the
+    Shout out to GitHub for having an incident as I was developing the
     action for the testing help.
     """
     retry_count = 0
     max_retries = 4
     wait_time_s = 5.0
     data = None
+    if shutil.which("docker") is None:
+        raise OSError("docker executable not found")
     while (retry_count < max_retries) and data is None:
         try:
             proc = subprocess.run(
@@ -45,6 +47,8 @@ def _handle_docker_inspect_with_timeout(name: str) -> dict:
                 logger.warning("i/o timeout, retrying")
                 retry_count += 1
                 time.sleep(wait_time_s)
+                # Double this each time
+                wait_time_s = wait_time_s * 2
                 continue
             # Not a known error, raise
             logger.error(
