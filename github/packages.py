@@ -1,7 +1,7 @@
 import functools
 import logging
 import re
-import urllib
+import urllib.parse
 
 import github_action_utils as gha_utils
 
@@ -23,7 +23,7 @@ class ContainerPackage(GithubEndpointResponse):
         # specific package, including deletion of it or restoration
         self.id: int = self._data["id"]
 
-        # A string name.  This might be an actual name or it could be a
+        # A string name.  This might be an actual name, or it could be a
         # digest string like "sha256:"
         self.name: str = self._data["name"]
 
@@ -60,29 +60,15 @@ class ContainerPackage(GithubEndpointResponse):
         return f"Package {self.name}"
 
 
-class GithubContainerRegistryApi(GithubApiBase):
-    """
-    Class wrapper to deal with the Github packages API.  This class only deals with
-    container type packages, the only type published by paperless-ngx.
-    """
+class _GithubContainerRegistryApiBase(GithubApiBase):
+    PACKAGE_VERSIONS_ENDPOINT = ""
+    PACKAGE_VERSION_DELETE_ENDPOINT = ""
+    PACKAGE_VERSION_RESTORE_ENDPOINT = ""
 
     def __init__(self, token: str, owner_or_org: str, is_org: bool = False) -> None:
         super().__init__(token)
         self._owner_or_org = owner_or_org
         self.is_org = is_org
-        if self.is_org:
-            # https://docs.github.com/en/rest/packages#get-all-package-versions-for-a-package-owned-by-an-organization
-            self._PACKAGES_VERSIONS_ENDPOINT = "https://api.github.com/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions"
-            # https://docs.github.com/en/rest/packages#delete-package-version-for-an-organization
-            self._PACKAGE_VERSION_DELETE_ENDPOINT = "https://api.github.com/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}"
-        else:
-            # https://docs.github.com/en/rest/packages#get-all-package-versions-for-a-package-owned-by-the-authenticated-user
-            self._PACKAGES_VERSIONS_ENDPOINT = "https://api.github.com/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions"
-            # https://docs.github.com/en/rest/packages#delete-a-package-version-for-the-authenticated-user
-            self._PACKAGE_VERSION_DELETE_ENDPOINT = "https://api.github.com/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}"
-        self._PACKAGE_VERSION_RESTORE_ENDPOINT = (
-            f"{self._PACKAGE_VERSION_DELETE_ENDPOINT}/restore"
-        )
 
     def versions(
         self,
@@ -97,7 +83,7 @@ class GithubContainerRegistryApi(GithubApiBase):
         # Need to quote this for slashes in the name
         package_name = urllib.parse.quote(package_name, safe="")
 
-        endpoint = self._PACKAGES_VERSIONS_ENDPOINT.format(
+        endpoint = self.PACKAGE_VERSIONS_ENDPOINT.format(
             ORG=self._owner_or_org,
             PACKAGE_TYPE=package_type,
             PACKAGE_NAME=package_name,
@@ -143,7 +129,7 @@ class GithubContainerRegistryApi(GithubApiBase):
             )
             gha_utils.warning(
                 message=msg,
-                title=f"Unexpected delete status: {resp.status}",
+                title=f"Unexpected delete status: {resp.status_code}",
             )
             logger.warning(msg)
 
@@ -153,7 +139,7 @@ class GithubContainerRegistryApi(GithubApiBase):
         id: int,
     ):
         package_type: str = "container"
-        endpoint = self._PACKAGE_VERSION_RESTORE_ENDPOINT.format(
+        endpoint = self.PACKAGE_VERSION_RESTORE_ENDPOINT.format(
             ORG=self._owner_or_org,
             PACKAGE_TYPE=package_type,
             PACKAGE_NAME=package_name,
@@ -165,6 +151,34 @@ class GithubContainerRegistryApi(GithubApiBase):
             msg = f"Request to restore id {id} returned HTTP {resp.status_code}"
             gha_utils.warning(
                 message=msg,
-                title=f"Unexpected restore status: {resp.status}",
+                title=f"Unexpected restore status: {resp.status_code}",
             )
             logger.warning(msg)
+
+
+class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase):
+    """
+    Class wrapper to deal with the GitHub packages API.  This class only deals with
+    container type packages, the only type published by paperless-ngx.
+    This class is for organizations
+    """
+
+    PACKAGE_VERSIONS_ENDPOINT = (
+        "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions"
+    )
+    PACKAGE_VERSION_DELETE_ENDPOINT = "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}"  # noqa: 501
+    PACKAGE_VERSION_RESTORE_ENDPOINT = "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}/restore"  # noqa: 501
+
+
+class GithubContainerRegistryUserApi(_GithubContainerRegistryApiBase):
+    """
+    Class wrapper to deal with the GitHub packages API.  This class only deals with
+    container type packages, the only type published by paperless-ngx.
+    This class is for user owned packages
+    """
+
+    PACKAGE_VERSIONS_ENDPOINT = "/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions"
+    PACKAGE_VERSION_DELETE_ENDPOINT = (
+        "/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}"
+    )
+    PACKAGE_VERSION_RESTORE_ENDPOINT = "/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}/restore"  # noqa: 501

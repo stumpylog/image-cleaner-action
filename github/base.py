@@ -16,27 +16,27 @@ logger = logging.getLogger(__name__)
 
 class GithubApiBase:
     """
-    A base class for interacting with the Github API.  It
+    A base class for interacting with the GitHub API.  It
     will handle the session and setting authorization headers.
     """
 
+    API_BASE_URL = "https://api.github.com"
+
     def __init__(self, token: str) -> None:
         self._token = token
-        self._client: httpx.Client | None = None
-
-    def __enter__(self):
-        """
-        Sets up the required headers for auth and response
-        type from the API
-        """
-        self._client = httpx.Client(timeout=30.0)
-        self._client.headers.update(
-            {
+        # Create the client for connection pooling, add headers for type
+        # version and authorization
+        self._client: httpx.Client = httpx.Client(
+            base_url=self.API_BASE_URL,
+            timeout=30.0,
+            headers={
                 "Accept": "application/vnd.github.v3+json",
                 "Authorization": f"token {self._token}",
                 "X-GitHub-Api-Version": "2022-11-28",
             },
         )
+
+    def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

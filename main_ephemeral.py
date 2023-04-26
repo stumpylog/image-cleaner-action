@@ -6,7 +6,8 @@ from argparse import ArgumentParser
 
 from github.branches import GithubBranchApi
 from github.packages import ContainerPackage
-from github.packages import GithubContainerRegistryApi
+from github.packages import GithubContainerRegistryOrgApi
+from github.packages import GithubContainerRegistryUserApi
 from github.pullrequest import GithubPullRequestApi
 from github.ratelimit import GithubRateLimitApi
 from regtools.images import check_tag_still_valid
@@ -105,6 +106,7 @@ def _main() -> None:
     parser.add_argument(
         "--token",
         help="Personal Access Token with the OAuth scope for packages:delete",
+        required=True,
     )
 
     # Requires an affirmative command to actually do a delete
@@ -131,6 +133,7 @@ def _main() -> None:
     parser.add_argument(
         "--name",
         help="The package to process",
+        required=True,
     )
 
     # Allows configuration of log level for debugging
@@ -143,16 +146,19 @@ def _main() -> None:
     parser.add_argument(
         "--match-regex",
         help="Regular expression to filter matching image tags",
+        required=True,
     )
 
     parser.add_argument(
         "--repo",
         help="The repository to look at branches or pulls from",
+        required=True,
     )
 
     parser.add_argument(
         "--scheme",
         help="Either 'branch' or 'pull_request', denoting how images are correlated",
+        required=True,
     )
 
     config = Config(parser.parse_args())
@@ -180,7 +186,12 @@ def _main() -> None:
     #
     # Step 1 - gather the active package information
     #
-    with GithubContainerRegistryApi(
+    container_reg_class = (
+        GithubContainerRegistryOrgApi
+        if config.is_org
+        else GithubContainerRegistryUserApi
+    )
+    with container_reg_class(
         config.token,
         config.owner_or_org,
         config.is_org,
@@ -227,7 +238,7 @@ def _main() -> None:
     #
     # Step 4 - Delete the stale packages
     #
-    with GithubContainerRegistryApi(
+    with container_reg_class(
         config.token,
         config.owner_or_org,
         config.is_org,

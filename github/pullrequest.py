@@ -15,27 +15,28 @@ class PullRequest(GithubEndpointResponse):
 
 
 class GithubPullRequestApi(GithubApiBase):
-    def __init__(self, token: str) -> None:
-        super().__init__(token)
-        self._ENDPOINT = (
-            "https://api.github.com/repos/{OWNER}/{REPO}/pulls/{PULL_NUMBER}"
-        )
+    GET_PR_API_ENDPOINT = "/repos/{OWNER}/{REPO}/pulls/{PULL_NUMBER}"
+    LIST_PR_API_ENDPOINT = "/repos/{OWNER}/{REPO}/pulls"
 
     def get(self, owner: str, repo: str, number: int) -> PullRequest:
-        endpoint = self._ENDPOINT.format(OWNER=owner, REPO=repo, PULL_NUMBER=number)
+        endpoint = self.GET_PR_API_ENDPOINT.format(
+            OWNER=owner,
+            REPO=repo,
+            PULL_NUMBER=number,
+        )
         resp = self._client.get(endpoint)
         resp.raise_for_status()
         return PullRequest(resp.json())
 
-    def closed_pulls(self, owner: str, repo: str, number: int) -> list[PullRequest]:
-        endpoint = self._ENDPOINT.format(OWNER=owner, REPO=repo, PULL_NUMBER=number)
+    def closed_pulls(self, owner: str, repo: str) -> list[PullRequest]:
+        endpoint = self.LIST_PR_API_ENDPOINT.format(OWNER=owner, REPO=repo)
         query_params = {"state": "closed", "per_page": 100}
         resp = self._read_all_pages(endpoint, query_params=query_params)
         resp.raise_for_status()
         return [PullRequest(x) for x in resp.json()]
 
-    def open_pulls(self, owner: str, repo: str, number: int) -> list[PullRequest]:
-        endpoint = self._ENDPOINT.format(OWNER=owner, REPO=repo, PULL_NUMBER=number)
+    def open_pulls(self, owner: str, repo: str) -> list[PullRequest]:
+        endpoint = self.LIST_PR_API_ENDPOINT.format(OWNER=owner, REPO=repo)
         query_params = {"state": "closed", "per_page": 100}
         resp = self._read_all_pages(endpoint, query_params=query_params)
         resp.raise_for_status()
