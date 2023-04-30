@@ -1,23 +1,34 @@
 name: 'Ephemeral Image Cleaner'
 description: 'A GitHub Action that cleans up the ghcr.io registry of old images, once the image source is gone'
 inputs:
-  scheme:
-    description: 'Choose the image naming scheme either "branch" or "pull_request"'
+  token:
+    description: 'The Personal Access Token for deleting packages'
     required: true
-    default: "branch"
-  package_name:
-    description: 'The name of the container package to clean'
+  owner:
+    description: 'The owner of the package'
     required: true
   is_org:
     description: 'True if the package owner is an organization, False otherwise'
     required: true
     default: "false"
-  tag_match_regex:
+  package_name:
+    description: 'The name of the container package to clean'
+    required: true
+  repo_name:
+    description: 'Name of the repository for pull requests or branches'
+    required: true
+  scheme:
+    description: 'Choose the image naming scheme either "branch" or "pull_request"'
+    required: true
+    default: "branch"
+  match_regex:
     description: 'The regular expression to use for matching your temporary image tagging scheme'
     required: true
+    default: "$^"
   do_delete:
     description: 'If true, actually delete packages'
     required: true
+    default: "false"
   log_level:
     description: 'Control the log level'
     default: "info"
@@ -34,32 +45,35 @@ runs:
       name: Install pipenv
       shell: bash
       run: |
-        pip install --user pipenv==2023.3.20
+        pip3 --quiet install --user pipenv==2023.4.20
     -
       name: Install dependencies
       shell: bash
       run: |
         cd ${{ github.action_path }}/..
-        pipenv --python ${{ steps.setup-python.outputs.python-version }} sync
+        pipenv --quiet --python ${{ steps.setup-python.outputs.python-version }} sync
     -
       name: List installed dependencies
       shell: bash
       run: |
         cd ${{ github.action_path }}/..
-        pipenv --python ${{ steps.setup-python.outputs.python-version }} run pip list
+        pipenv --quiet --python ${{ steps.setup-python.outputs.python-version }} run pip list
     -
       name: Clean the images
       shell: bash
       id: get-square
       run: |
         cd  ${{ github.action_path }}/..
-        pipenv \
+        pipenv --quiet \
           --python ${{ steps.setup-python.outputs.python-version }} \
           run \
             ${{ github.action_path }}/../main_ephemeral.py \
-            --token ${{ inputs.token }} \
-            --owner ${{ inputs.owner }} \
-            --is-org ${{ inputs.is_org }} \
-            --name ${{ inputs.package_name }} \
-            --delete ${{ inputs.do_delete }} \
-            --loglevel ${{ inputs.log_level }}
+            --token "${{ inputs.token }}" \
+            --owner "${{ inputs.owner }}" \
+            --scheme "${{ inputs.scheme }}" \
+            --match-regex "${{ inputs.match_regex }}" \
+            --is-org "${{ inputs.is_org }}" \
+            --name "${{ inputs.package_name }}" \
+            --delete "${{ inputs.do_delete }}" \
+            --loglevel "${{ inputs.log_level }}" \
+            --repo "${{ inputs.repo_name }}"

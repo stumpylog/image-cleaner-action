@@ -47,6 +47,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# ide
+.idea
+
 # mypy
 .mypy_cache/
 .dmypy.json
@@ -55,4 +58,5 @@ dmypy.json
 # ruff linter
 .ruff_cache
 
+# secrets
 token.txt

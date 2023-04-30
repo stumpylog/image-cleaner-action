@@ -1,4 +1,6 @@
+import functools
 import logging
+import re
 
 from github.base import GithubApiBase
 from github.base import GithubEndpointResponse
@@ -19,6 +21,10 @@ class GithubBranch(GithubEndpointResponse):
     def __str__(self) -> str:
         return f"Branch {self.name}"
 
+    @functools.cache
+    def matches(self, pattern: str) -> bool:
+        return re.match(pattern, self.name) is not None
+
 
 class GithubBranchApi(GithubApiBase):
     """
@@ -28,10 +34,10 @@ class GithubBranchApi(GithubApiBase):
 
     """
 
+    API_ENDPOINT = "/repos/{OWNER}/{REPO}/branches"
+
     def __init__(self, token: str) -> None:
         super().__init__(token)
-
-        self._ENDPOINT = "https://api.github.com/repos/{OWNER}/{REPO}/branches"
 
     def branches(self, owner: str, repo: str) -> list[GithubBranch]:
         """
@@ -39,6 +45,7 @@ class GithubBranchApi(GithubApiBase):
         owner or organization.
         """
         # The environment GITHUB_REPOSITORY already contains the owner in the correct location
-        endpoint = self._ENDPOINT.format(OWNER=owner, REPO=repo)
-        internal_data = self._read_all_pages(endpoint)
+        internal_data = self._read_all_pages(
+            self.API_ENDPOINT.format(OWNER=owner, REPO=repo),
+        )
         return [GithubBranch(branch) for branch in internal_data]

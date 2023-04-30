@@ -4,12 +4,14 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-httpx = "*"
+httpx = {version = "*", extras = ["http2", "brotli"]}
+github-action-utils = "*"
 
 [dev-packages]
 ruff = "*"
 black = "*"
 pre-commit = "*"
+mypy = "*"
 
 [requires]
 python_version = "3.10"

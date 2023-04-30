@@ -3,9 +3,63 @@ import json
 import logging
 import shutil
 import subprocess
+import time
 from collections.abc import Iterator
 
+import github_action_utils as gha_utils
+
 logger = logging.getLogger(__name__)
+
+
+def _handle_docker_inspect_with_timeout(name: str) -> dict:
+    """
+    docker inspect can sometimes timeout, attempt to handle it with a
+    few retries and a short sleep in between.
+
+    Shout out to GitHub for having an incident as I was developing the
+    action for the testing help.
+    """
+    retry_count = 0
+    max_retries = 4
+    wait_time_s = 5.0
+    data = None
+    if shutil.which("docker") is None:
+        raise OSError("docker executable not found")
+    while (retry_count < max_retries) and data is None:
+        try:
+            proc = subprocess.run(
+                [
+                    shutil.which("docker"),
+                    "buildx",
+                    "imagetools",
+                    "inspect",
+                    "--raw",
+                    name,
+                ],
+                capture_output=True,
+                check=True,
+            )
+            data = json.loads(proc.stdout)
+        except subprocess.CalledProcessError as e:
+            # Check for an i/o error and retry if so
+            stderr_str = e.stderr.decode("ascii", "ignore")
+            if "i/o timeout" in stderr_str:
+                logger.warning("i/o timeout, retrying")
+                retry_count += 1
+                time.sleep(wait_time_s)
+                # Double this each time
+                wait_time_s = wait_time_s * 2
+                continue
+            # Not a known error, raise
+            logger.error(
+                f"Failed to get inspect {name}: {stderr_str}",
+            )
+            raise e
+    if data is None:
+        msg = f"Failed to get inspect {name}"
+        gha_utils.error(message=msg, title="docker inspect failure")
+        raise TimeoutError(msg)
+    return data
 
 
 class BaseImageProperties:
@@ -48,27 +102,8 @@ class ImageIndexInfo:
     def __init__(self, package_url: str, tag: str) -> None:
         self.qualified_name = f"{package_url}:{tag}"
         logger.info(f"Getting image index for {self.qualified_name}")
-        try:
-            proc = subprocess.run(
-                [
-                    shutil.which("docker"),
-                    "buildx",
-                    "imagetools",
-                    "inspect",
-                    "--raw",
-                    self.qualified_name,
-                ],
-                capture_output=True,
-                check=True,
-            )
 
-            self._data = json.loads(proc.stdout)
-
-        except subprocess.CalledProcessError as e:
-            logger.error(
-                f"Failed to get image index for {self.qualified_name}: {e.stderr}",
-            )
-            raise e
+        self._data = _handle_docker_inspect_with_timeout(self.qualified_name)
 
     @functools.cached_property
     def is_multi_arch(self) -> bool:
@@ -98,22 +133,10 @@ def check_tag_still_valid(owner: str, name: str, tag: str):
     """
 
     def _check_image(full_name: str) -> bool:
-        failed = False
         try:
-            subprocess.run(
-                [
-                    shutil.which("docker"),
-                    "buildx",
-                    "imagetools",
-                    "inspect",
-                    "--raw",
-                    full_name,
-                ],
-                capture_output=True,
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to inspect digest: {e.stderr}")
+            _handle_docker_inspect_with_timeout(full_name)
+            failed = False
+        except (TimeoutError, subprocess.CalledProcessError):
             failed = True
         return failed
 
@@ -139,4 +162,9 @@ def check_tag_still_valid(owner: str, name: str, tag: str):
                 logger.error("Failed to inspect digest")
 
     if a_tag_failed:
-        raise Exception(f"tag {image_index.qualified_name} failed to inspect")
+        msg = f"tag {image_index.qualified_name} failed to inspect, may be no longer valid"
+        gha_utils.error(
+            message=msg,
+            title=f"Verification failure: {image_index.qualified_name}",
+        )
+        raise Exception(msg)
