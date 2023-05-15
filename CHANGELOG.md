@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added increased logging during initial information gathering
+- Added better handling of encountering a rate limit while the action is executing
 
 ### Changed
 

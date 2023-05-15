@@ -3,6 +3,8 @@
 import logging
 import re
 
+import github_action_utils as gha_utils
+
 from github.branches import GithubBranchApi
 from github.packages import ContainerPackage
 from github.packages import GithubContainerRegistryOrgApi
@@ -13,6 +15,7 @@ from regtools.images import check_tag_still_valid
 from utils import coerce_to_bool
 from utils import common_args
 from utils import get_log_level
+from utils.errors import RateLimitError
 
 logger = logging.getLogger("image-cleaner")
 
@@ -241,5 +244,8 @@ def _main() -> None:
 if __name__ == "__main__":
     try:
         _main()
+    except RateLimitError:
+        logger.error("Rate limit hit during execution")
+        gha_utils.error("Rate limit hit during execution")
     finally:
         logging.shutdown()

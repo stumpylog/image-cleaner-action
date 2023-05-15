@@ -7,9 +7,12 @@ is cleaning up container images which are no longer referred to.
 
 """
 import logging
+from http import HTTPStatus
 
 import github_action_utils as gha_utils
 import httpx
+
+from utils.errors import RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +67,7 @@ class GithubApiBase:
 
         while True:
             resp = self._client.get(endpoint, params=query_params)
-            if resp.status_code == 200:
+            if resp.status_code == HTTPStatus.OK:
                 internal_data += resp.json()
                 if "next" in resp.links:
                     endpoint = resp.links["next"]["url"]
@@ -75,6 +78,15 @@ class GithubApiBase:
                 msg = f"Request to {endpoint} return HTTP {resp.status_code}"
                 gha_utils.error(message=msg, title=f"HTTP Error {resp.status_code}")
                 logger.error(msg)
+
+                # If forbidden, check if it is rate limiting
+                if (
+                    resp.status_code == HTTPStatus.FORBIDDEN
+                    and "X-RateLimit-Remaining" in resp.headers
+                ):
+                    remaining = int(resp.headers["X-RateLimit-Remaining"])
+                    if remaining <= 0:
+                        raise RateLimitError
                 resp.raise_for_status()
 
         return internal_data
