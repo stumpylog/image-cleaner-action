@@ -70,10 +70,12 @@ def _main() -> None:
         config.owner_or_org,
         config.is_org,
     ) as api:
+        logger.info("Getting active packages")
         # Get the active (not deleted) packages
         active_versions = api.active_versions(config.package_name)
+        logger.info(f"{len(active_versions)} active packages")
 
-    # Map the tag (eg latest) to its package and simplify the untagged data
+    # Map the tag (e.g. latest) to its package and simplify the untagged data
     # mapping name (which is a digest) to the version
     # These just make it easier to do some lookups later
     tag_to_pkgs: dict[str, ContainerPackage] = {}
@@ -83,6 +85,8 @@ def _main() -> None:
             untagged_versions[pkg.name] = pkg
         for tag in pkg.tags:
             tag_to_pkgs[tag] = pkg
+
+    logger.info(f"Found {len(untagged_versions)} packages which look untagged")
 
     #
     # Step 2 - Find actually untagged packages
@@ -119,13 +123,19 @@ def _main() -> None:
             # TODO Make it clear for digests which are multi-tagged (latest, x.x.y)
             # they are not being deleted too
 
+    if not len(untagged_versions):
+        logger.info("Nothing to do")
+        return
+
+    logger.info(
+        f"After multi-arch, there are {len(untagged_versions)} untagged packages",
+    )
+
     #
     # Step 4 - Delete the actually untagged packages
     #
     # Delete the untagged and not pointed at packages
     logger.info(f"Deleting untagged packages of {config.package_name}")
-    if not len(untagged_versions):
-        logger.info("Nothing to do")
     with container_reg_class(
         config.token,
         config.owner_or_org,
