@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump httpx from 0.24.0 to 0.24.1
 - Changelog format updated to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+- HTTP connection to the API now uses HTTP/2 if possible
 
 ## [0.1.0] - 2023-06-30
 

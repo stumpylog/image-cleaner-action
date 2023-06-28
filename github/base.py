@@ -30,6 +30,7 @@ class GithubApiBase:
         # Create the client for connection pooling, add headers for type
         # version and authorization
         self._client: httpx.Client = httpx.Client(
+            http2=True,
             base_url=self.API_BASE_URL,
             timeout=30.0,
             headers={
