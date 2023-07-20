@@ -3,6 +3,8 @@
 import logging
 import re
 
+import github_action_utils as gha_utils
+
 from github.branches import GithubBranchApi
 from github.packages import ContainerPackage
 from github.packages import GithubContainerRegistryOrgApi
@@ -13,6 +15,7 @@ from regtools.images import check_tag_still_valid
 from utils import coerce_to_bool
 from utils import common_args
 from utils import get_log_level
+from utils.errors import RateLimitError
 
 logger = logging.getLogger("image-cleaner")
 
@@ -155,8 +158,10 @@ def _main() -> None:
         config.owner_or_org,
         config.is_org,
     ) as api:
+        logger.info("Getting active packages")
         # Get the active (not deleted) packages
         active_versions = api.active_versions(config.package_name)
+        logger.info(f"{len(active_versions)} active packages")
 
     #
     # Step 2 - Filter the packages to those which are:
@@ -166,6 +171,7 @@ def _main() -> None:
     #
     pkgs_matching_re: list[ContainerPackage] = []
     all_pkgs_tags_to_version: dict[str, ContainerPackage] = {}
+    logger.info("Filtering packages to those matching the regex")
     for pkg in active_versions:
         if pkg.untagged or len(pkg.tags) > 1:
             continue
@@ -184,15 +190,22 @@ def _main() -> None:
     # Step 3 - Gather the packages to remove (those where the source is gone or closed)
     #
     if config.scheme == "branch":
+        logger.info("Looking at branches for deletion considerations")
         tags_to_delete = _get_tag_to_delete_branch(config, pkgs_matching_re)
     elif config.scheme == "pull_request":
+        logger.info("Looking at pull requests for deletion considerations")
         tags_to_delete = _get_tags_to_delete_pull_request(config, pkgs_matching_re)
+    else:
+        # Configuration validation prevents any other option
+        pass
 
     tags_to_keep = list(set(all_pkgs_tags_to_version.keys()) - set(tags_to_delete))
 
     if not len(tags_to_delete):
         logger.info("No images to remove")
         return
+    logger.info(f"Will remove {len(set(tags_to_delete))} tagged packages")
+    logger.info(f"Will keep {len(tags_to_keep)} packages")
 
     #
     # Step 4 - Delete the stale packages
@@ -225,11 +238,14 @@ def _main() -> None:
         for tag in tags_to_keep:
             check_tag_still_valid(config.owner_or_org, config.package_name, tag)
     else:
-        logger.info("Dry run, not checking images")
+        logger.info("Dry run, not checking image manifests")
 
 
 if __name__ == "__main__":
     try:
         _main()
+    except RateLimitError:
+        logger.error("Rate limit hit during execution")
+        gha_utils.error("Rate limit hit during execution")
     finally:
         logging.shutdown()

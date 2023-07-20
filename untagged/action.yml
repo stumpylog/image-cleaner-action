@@ -34,7 +34,7 @@ runs:
       name: Install pipenv
       shell: bash
       run: |
-        pip3 --quiet install --user pipenv==2023.4.20
+        pip3 --quiet install --user pipenv==2023.6.26
     -
       name: Install dependencies
       shell: bash

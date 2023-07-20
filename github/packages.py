@@ -2,11 +2,13 @@ import functools
 import logging
 import re
 import urllib.parse
+from http import HTTPStatus
 
 import github_action_utils as gha_utils
 
 from github.base import GithubApiBase
 from github.base import GithubEndpointResponse
+from utils.errors import RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -123,15 +125,22 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
         Deletes the given package version from the GHCR
         """
         resp = self._client.delete(package_data.url)
-        if resp.status_code != 204:
-            msg = (
-                f"Request to delete {package_data.url} returned HTTP {resp.status_code}"
-            )
-            gha_utils.warning(
-                message=msg,
-                title=f"Unexpected delete status: {resp.status_code}",
-            )
-            logger.warning(msg)
+        if resp.status_code != HTTPStatus.NO_CONTENT:
+            # If forbidden, check if it is rate limiting
+            if (
+                resp.status_code == HTTPStatus.FORBIDDEN
+                and "X-RateLimit-Remaining" in resp.headers
+            ):
+                remaining = int(resp.headers["X-RateLimit-Remaining"])
+                if remaining <= 0:
+                    raise RateLimitError
+            else:
+                msg = f"Request to delete {package_data.url} returned HTTP {resp.status_code}"
+                gha_utils.warning(
+                    message=msg,
+                    title=f"Unexpected delete status: {resp.status_code}",
+                )
+                logger.warning(msg)
 
     def restore(
         self,
@@ -147,13 +156,22 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
         )
 
         resp = self._client.post(endpoint)
-        if resp.status_code != 204:
-            msg = f"Request to restore id {id} returned HTTP {resp.status_code}"
-            gha_utils.warning(
-                message=msg,
-                title=f"Unexpected restore status: {resp.status_code}",
-            )
-            logger.warning(msg)
+        if resp.status_code != HTTPStatus.NO_CONTENT:
+            # If forbidden, check if it is rate limiting
+            if (
+                resp.status_code == HTTPStatus.FORBIDDEN
+                and "X-RateLimit-Remaining" in resp.headers
+            ):
+                remaining = int(resp.headers["X-RateLimit-Remaining"])
+                if remaining <= 0:
+                    raise RateLimitError
+            else:
+                msg = f"Request to restore id {id} returned HTTP {resp.status_code}"
+                gha_utils.warning(
+                    message=msg,
+                    title=f"Unexpected restore status: {resp.status_code}",
+                )
+                logger.warning(msg)
 
 
 class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase):
