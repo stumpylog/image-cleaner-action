@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - CI enhancements to create a GitHub release with a changelog
 
+### Changed
+
+- Updated `pre-commit` hooks
+
 ## [0.2.0] - 2023-07-20
 
 ### Added
