@@ -13,7 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated `pre-commit` hooks
+- Updated `pre-commit` hook versions, fixed old links, removed unneeded hooks
+- Switch `black` hook to use its mirror for a speedup
+- Updated `pipenv` from `2023.6.26 to 2023.9.1
+- Updated Python version from 3.10 to 3.11
+- Manually re-locked all Python dependencies
 
 ## [0.2.0] - 2023-07-20
 
