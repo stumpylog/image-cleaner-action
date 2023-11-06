@@ -184,8 +184,8 @@ class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase):
     PACKAGE_VERSIONS_ENDPOINT = (
         "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions"
     )
-    PACKAGE_VERSION_DELETE_ENDPOINT = "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}"  # noqa: E501
-    PACKAGE_VERSION_RESTORE_ENDPOINT = "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}/restore"  # noqa: E501
+    PACKAGE_VERSION_DELETE_ENDPOINT = "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}"
+    PACKAGE_VERSION_RESTORE_ENDPOINT = "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}/restore"
 
 
 class GithubContainerRegistryUserApi(_GithubContainerRegistryApiBase):
@@ -199,4 +199,4 @@ class GithubContainerRegistryUserApi(_GithubContainerRegistryApiBase):
     PACKAGE_VERSION_DELETE_ENDPOINT = (
         "/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}"
     )
-    PACKAGE_VERSION_RESTORE_ENDPOINT = "/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}/restore"  # noqa: E501
+    PACKAGE_VERSION_RESTORE_ENDPOINT = "/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}/restore"
