@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2023-11-06
+
+### Changed
+
+- Bump actions/checkout from 3 to 4
+- Bump httpx from 0.25.0 to 0.25.1
+- Bump ruff from 0.0.292 to 0.1.0
+- Updated `pipenv` from 2023.9.1 to 2023.10.24
+- Basically, dependencies were updated
+
 ## [0.3.0] - 2023-09-05
 
 ### Added
@@ -15,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Updated `pre-commit` hook versions, fixed old links, removed unneeded hooks
 - Switch `black` hook to use its mirror for a speedup
-- Updated `pipenv` from `2023.6.26 to 2023.9.1
+- Updated `pipenv` from 2023.6.26 to 2023.9.1
 - Updated Python version from 3.10 to 3.11
 - Manually re-locked all Python dependencies
 
