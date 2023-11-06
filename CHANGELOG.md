@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump httpx from 0.25.0 to 0.25.1
 - Bump ruff from 0.0.292 to 0.1.0
 - Updated `pipenv` from 2023.9.1 to 2023.10.24
+- Fixed Ruff configuration
 - Basically, dependencies were updated
 
 ## [0.3.0] - 2023-09-05
