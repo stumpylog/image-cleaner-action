@@ -154,11 +154,11 @@
         },
         "httpcore": {
             "hashes": [
-                "sha256:13b5e5cd1dca1a6636a6aaea212b19f4f85cd88c366a2b82304181b769aab3c9",
-                "sha256:adc5398ee0a476567bf87467063ee63584a8bce86078bf748e48754f60202ced"
+                "sha256:c5e97ef177dca2023d0b9aad98e49507ef5423e9f1d94ffe2cfe250aa28e63b0",
+                "sha256:fce1ddf9b606cfb98132ab58865c3728c52c8e4c3c46e2aabb3674464a186e92"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==0.18.0"
+            "version": "==1.0.1"
         },
         "httpx": {
             "extras": [
@@ -166,11 +166,12 @@
                 "http2"
             ],
             "hashes": [
-                "sha256:181ea7f8ba3a82578be86ef4171554dd45fec26a02556a744db029a0a27b7100",
-                "sha256:47ecda285389cb32bb2691cc6e069e3ab0205956f681c5b2ad2325719751d875"
+                "sha256:fec7d6cc5c27c578a391f7e87b9aa7d3d8fbcd034f6399f9f79b45bcc12a866a",
+                "sha256:ffd96d5cf901e63863d9f1b4b6807861dbea4d301613415d9e6e57ead15fc5d0"
             ],
+            "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==0.25.0"
+            "version": "==0.25.1"
         },
         "hyperframe": {
             "hashes": [
