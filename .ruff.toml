@@ -1,6 +1,4 @@
 # https://beta.ruff.rs/docs/settings/
-# https://beta.ruff.rs/docs/rules/
-extend-select = ["I", "W", "UP", "COM", "EXE", "ISC", "ICN", "G201", "INP", "PIE", "RSE", "SIM", "TID", "PLC", "PLE", "RUF", "PTH"]
 fix = true
 line-length = 110
 respect-gitignore = true
@@ -8,5 +6,9 @@ target-version = "py310"
 output-format = "grouped"
 show-fixes = true
 
-[isort]
+[lint]
+# https://docs.astral.sh/ruff/rules/
+extend-select = ["F", "E", "W", "I", "UP", "COM", "EXE", "ISC", "ICN", "G201", "INP", "PIE", "RSE", "SIM", "TID", "PLC", "PLE", "RUF", "PTH"]
+
+[lint.isort]
 force-single-line = true
