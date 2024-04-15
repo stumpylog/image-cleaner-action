@@ -61,7 +61,7 @@ runs:
     -
       name: Clean the images
       shell: bash
-      id: get-square
+      id: ephemeral-image-clean
       run: |
         cd  ${{ github.action_path }}/..
         pipenv --quiet \
