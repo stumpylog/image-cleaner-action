@@ -50,7 +50,7 @@ runs:
     -
       name: Clean the images
       shell: bash
-      id: get-square
+      id: untagged-image-clean
       run: |
         cd  ${{ github.action_path }}/..
         pipenv --quiet \
