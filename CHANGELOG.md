@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2024-04-15
+
+### Changed
+
+- Bump pre-commit from 3.6.2 to 3.7.0 (by @dependabot in #76)
+- Bump ruff from 0.3.3 to 0.3.5 (by @dependabot in #77)
+- Bump black from 24.3.0 to 24.4.0 (by @dependabot in #78)
+- Bump ruff from 0.3.5 to 0.3.7 (by @dependabot in #79)
+
 ## [0.5.0] - 2024-02-06
 
 ### Changed
