@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Bump ruff from 0.3.7 to 0.4.3 (by @dependabot in [#84](https://github.com/stumpylog/image-cleaner-action/pull/84))
+
 ## [0.6.0] - 2024-04-15
 
 ### Changed
