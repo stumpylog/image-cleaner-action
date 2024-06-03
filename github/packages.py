@@ -92,7 +92,7 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
         )
 
         # Always request the max allowed per page
-        query_params = {"per_page": 100}
+        query_params: dict[str, str | int] = {"per_page": 100}
 
         # Filter to the requested state, if any
         if active is not None:
