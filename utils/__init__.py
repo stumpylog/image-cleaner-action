@@ -2,7 +2,7 @@ import logging
 from argparse import ArgumentParser
 
 
-def get_log_level(level_name: str) -> int:
+async def get_log_level(level_name: str) -> int:
     """
     Returns a logging level, based
     :param args:
@@ -22,7 +22,7 @@ def get_log_level(level_name: str) -> int:
     return level
 
 
-def coerce_to_bool(value) -> bool:
+async def coerce_to_bool(value) -> bool:
     """
     Given a thing, try hard to convert it from something which looks boolean
     like, but it actually a string or something, to a boolean
@@ -35,7 +35,7 @@ def coerce_to_bool(value) -> bool:
     return value
 
 
-def common_args(description: str) -> ArgumentParser:
+async def common_args(description: str) -> ArgumentParser:
     """
     Constructs an ArgumentParser with the common args to each action's
     main entry

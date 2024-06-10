@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import json
 import logging
@@ -11,7 +12,7 @@ import github_action_utils as gha_utils
 logger = logging.getLogger(__name__)
 
 
-def _handle_docker_inspect_with_timeout(name: str) -> dict:
+async def _handle_docker_inspect_with_timeout(name: str) -> dict:
     """
     docker inspect can sometimes timeout, attempt to handle it with a
     few retries and a short sleep in between.
@@ -29,19 +30,27 @@ def _handle_docker_inspect_with_timeout(name: str) -> dict:
 
     while (retry_count < max_retries) and data is None:
         try:
-            proc = subprocess.run(
-                [
-                    docker_exe,
-                    "buildx",
-                    "imagetools",
-                    "inspect",
-                    "--raw",
-                    name,
-                ],
-                capture_output=True,
-                check=True,
+            proc = await asyncio.create_subprocess_exec(
+                docker_exe,
+                "buildx",
+                "imagetools",
+                "inspect",
+                "--raw",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            data = json.loads(proc.stdout)
+            await proc.wait()
+            stdout, stderr = await proc.communicate()
+            if proc.returncode and proc.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    proc.returncode,
+                    docker_exe,
+                    stdout,
+                    stderr,
+                )
+
+            data = json.loads(stdout)
+
         except subprocess.CalledProcessError as e:
             # Check for an i/o error and retry if so
             stderr_str = e.stderr.decode("ascii", "ignore")
@@ -101,11 +110,11 @@ class ImageIndexInfo:
     See https://github.com/opencontainers/image-spec/blob/main/image-index.md
     """
 
-    def __init__(self, package_url: str, tag: str) -> None:
+    async def __init__(self, package_url: str, tag: str) -> None:
         self.qualified_name = f"{package_url}:{tag}"
         logger.info(f"Getting image index for {self.qualified_name}")
 
-        self._data = _handle_docker_inspect_with_timeout(self.qualified_name)
+        self._data = await _handle_docker_inspect_with_timeout(self.qualified_name)
 
     @functools.cached_property
     def is_multi_arch(self) -> bool:
@@ -125,7 +134,7 @@ class ImageIndexInfo:
             yield MultiArchImageProperties(manifest_data)
 
 
-def check_tag_still_valid(owner: str, name: str, tag: str):
+async def check_tag_still_valid(owner: str, name: str, tag: str):
     """
     Checks the non-deleted tags are still valid.  The assumption is if the
     manifest is can be inspected and each image manifest if points to can be
@@ -134,9 +143,9 @@ def check_tag_still_valid(owner: str, name: str, tag: str):
     https://github.com/opencontainers/image-spec/blob/main/image-index.md
     """
 
-    def _check_image(full_name: str) -> bool:
+    async def _check_image(full_name: str) -> bool:
         try:
-            _handle_docker_inspect_with_timeout(full_name)
+            await _handle_docker_inspect_with_timeout(full_name)
             failed = False
         except (TimeoutError, subprocess.CalledProcessError):
             failed = True

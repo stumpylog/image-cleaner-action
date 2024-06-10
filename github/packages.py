@@ -72,7 +72,7 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
         self._owner_or_org = owner_or_org
         self.is_org = is_org
 
-    def versions(
+    async def versions(
         self,
         package_name: str,
         active: bool | None = None,
@@ -103,28 +103,28 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
 
         pkgs = []
 
-        for data in self._read_all_pages(endpoint, query_params=query_params):
+        for data in await self._read_all_pages(endpoint, query_params=query_params):
             pkgs.append(ContainerPackage(data))
 
         return pkgs
 
-    def active_versions(
+    async def active_versions(
         self,
         package_name: str,
     ) -> list[ContainerPackage]:
-        return self.versions(package_name, True)
+        return await self.versions(package_name, True)
 
-    def deleted_versions(
+    async def deleted_versions(
         self,
         package_name: str,
     ) -> list[ContainerPackage]:
-        return self.versions(package_name, False)
+        return await self.versions(package_name, False)
 
-    def delete(self, package_data: ContainerPackage):
+    async def delete(self, package_data: ContainerPackage):
         """
         Deletes the given package version from the GHCR
         """
-        resp = self._client.delete(package_data.url)
+        resp = await self._client.delete(package_data.url)
         if resp.status_code != HTTPStatus.NO_CONTENT:
             # If forbidden, check if it is rate limiting
             if (
@@ -142,7 +142,7 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
                 )
                 logger.warning(msg)
 
-    def restore(
+    async def restore(
         self,
         package_name: str,
         id: int,
@@ -155,7 +155,7 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
             PACKAGE_VERSION_ID=id,
         )
 
-        resp = self._client.post(endpoint)
+        resp = await self._client.post(endpoint)
         if resp.status_code != HTTPStatus.NO_CONTENT:
             # If forbidden, check if it is rate limiting
             if (

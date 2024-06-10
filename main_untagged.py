@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import asyncio
 import logging
 
 import github_action_utils as gha_utils
@@ -19,17 +20,17 @@ logger = logging.getLogger("image-cleaner")
 
 
 class Config:
-    def __init__(self, args) -> None:
+    async def __init__(self, args) -> None:
         self.token: str = args.token
         self.owner_or_org: str = args.owner
-        self.is_org = coerce_to_bool(args.is_org)
+        self.is_org: bool = await coerce_to_bool(args.is_org)
         self.package_name: str = args.name
-        self.log_level: int = get_log_level(args.loglevel)
-        self.delete: bool = coerce_to_bool(args.delete)
+        self.log_level: int = await get_log_level(args.loglevel)
+        self.delete: bool = await coerce_to_bool(args.delete)
 
 
-def _main() -> None:
-    parser = common_args(
+async def _main() -> None:
+    parser = await common_args(
         "Using the GitHub API locate and optionally delete container"
         "images which are untagged",
     )
@@ -50,8 +51,8 @@ def _main() -> None:
     #
     # Step 0 - Check how the rate limits are looking
     #
-    with GithubRateLimitApi(config.token) as api:
-        current_limits = api.limits()
+    async with GithubRateLimitApi(config.token) as api:
+        current_limits = await api.limits()
         if current_limits.limited:
             logger.error(
                 f"Currently rate limited, reset at {current_limits.reset_time}",
@@ -68,14 +69,14 @@ def _main() -> None:
         if config.is_org
         else GithubContainerRegistryUserApi
     )
-    with container_reg_class(
+    async with container_reg_class(
         config.token,
         config.owner_or_org,
         config.is_org,
     ) as api:
         logger.info("Getting active packages")
         # Get the active (not deleted) packages
-        active_versions = api.active_versions(config.package_name)
+        active_versions = await api.active_versions(config.package_name)
         logger.info(f"{len(active_versions)} active packages")
 
     # Map the tag (e.g. latest) to its package and simplify the untagged data
@@ -139,7 +140,7 @@ def _main() -> None:
     #
     # Delete the untagged and not pointed at packages
     logger.info(f"Deleting untagged packages of {config.package_name}")
-    with container_reg_class(
+    async with container_reg_class(
         config.token,
         config.owner_or_org,
         config.is_org,
@@ -151,7 +152,7 @@ def _main() -> None:
                 logger.info(
                     f"Deleting id {to_delete_version.id} named {to_delete_version.name}",
                 )
-                api.delete(
+                await api.delete(
                     to_delete_version,
                 )
             else:
@@ -165,14 +166,14 @@ def _main() -> None:
     if config.delete:
         logger.info("Beginning confirmation step")
         for tag in tags_to_keep:
-            check_tag_still_valid(config.owner_or_org, config.package_name, tag)
+            await check_tag_still_valid(config.owner_or_org, config.package_name, tag)
     else:
         logger.info("Dry run, not checking images")
 
 
 if __name__ == "__main__":
     try:
-        _main()
+        asyncio.run(_main())
     except RateLimitError:
         logger.error("Rate limit hit during execution")
         gha_utils.error("Rate limit hit during execution")

@@ -30,7 +30,7 @@ class GithubApiBase:
         self._token = token
         # Create the client for connection pooling, add headers for type
         # version and authorization
-        self._client: httpx.Client = httpx.Client(
+        self._client: httpx.AsyncClient = httpx.AsyncClient(
             http2=True,
             base_url=self.API_BASE_URL,
             timeout=30.0,
@@ -41,10 +41,10 @@ class GithubApiBase:
             },
         )
 
-    def __enter__(self):
+    async def __aenter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         """
         Ensures the authorization token is cleaned up no matter
         the reason for the exit
@@ -55,10 +55,9 @@ class GithubApiBase:
             del self._client.headers["Authorization"]
 
         # Close the session as well
-        self._client.close()
-        self._client = None
+        await self._client.aclose()
 
-    def _read_all_pages(self, endpoint: str, query_params: dict | None = None):
+    async def _read_all_pages(self, endpoint: str, query_params: dict | None = None):
         """
         Helper function to read all pages of an endpoint, utilizing the
         next.url until exhausted.  Assumes the endpoint returns a list
@@ -68,7 +67,7 @@ class GithubApiBase:
             query_params = {}
 
         while True:
-            resp = self._client.get(endpoint, params=query_params)
+            resp = await self._client.get(endpoint, params=query_params)
             if resp.status_code == HTTPStatus.OK:
                 internal_data += resp.json()
                 if "next" in resp.links:
