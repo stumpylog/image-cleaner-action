@@ -115,8 +115,7 @@ class ImageIndexInfo:
                 "application/vnd.oci.image.index.v1+json",
                 "application/vnd.docker.distribution.manifest.list.v2+json",
             }
-            and "application/vnd.oci.image.layer"
-            not in self._data["manifests"][0]["mediaType"]
+            and "application/vnd.oci.image.layer" not in self._data["manifests"][0]["mediaType"]
         )
 
     @property

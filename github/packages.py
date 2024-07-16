@@ -127,10 +127,7 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
         resp = self._client.delete(package_data.url)
         if resp.status_code != HTTPStatus.NO_CONTENT:
             # If forbidden, check if it is rate limiting
-            if (
-                resp.status_code == HTTPStatus.FORBIDDEN
-                and "X-RateLimit-Remaining" in resp.headers
-            ):
+            if resp.status_code == HTTPStatus.FORBIDDEN and "X-RateLimit-Remaining" in resp.headers:
                 remaining = int(resp.headers["X-RateLimit-Remaining"])
                 if remaining <= 0:
                     raise RateLimitError
@@ -158,10 +155,7 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
         resp = self._client.post(endpoint)
         if resp.status_code != HTTPStatus.NO_CONTENT:
             # If forbidden, check if it is rate limiting
-            if (
-                resp.status_code == HTTPStatus.FORBIDDEN
-                and "X-RateLimit-Remaining" in resp.headers
-            ):
+            if resp.status_code == HTTPStatus.FORBIDDEN and "X-RateLimit-Remaining" in resp.headers:
                 remaining = int(resp.headers["X-RateLimit-Remaining"])
                 if remaining <= 0:
                     raise RateLimitError
@@ -181,11 +175,13 @@ class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase):
     This class is for organizations
     """
 
-    PACKAGE_VERSIONS_ENDPOINT = (
-        "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions"
+    PACKAGE_VERSIONS_ENDPOINT = "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions"
+    PACKAGE_VERSION_DELETE_ENDPOINT = (
+        "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}"
     )
-    PACKAGE_VERSION_DELETE_ENDPOINT = "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}"  # noqa: E501
-    PACKAGE_VERSION_RESTORE_ENDPOINT = "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}/restore"  # noqa: E501
+    PACKAGE_VERSION_RESTORE_ENDPOINT = (
+        "/orgs/{ORG}/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}/restore"
+    )
 
 
 class GithubContainerRegistryUserApi(_GithubContainerRegistryApiBase):
@@ -199,4 +195,6 @@ class GithubContainerRegistryUserApi(_GithubContainerRegistryApiBase):
     PACKAGE_VERSION_DELETE_ENDPOINT = (
         "/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}"
     )
-    PACKAGE_VERSION_RESTORE_ENDPOINT = "/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}/restore"  # noqa: E501
+    PACKAGE_VERSION_RESTORE_ENDPOINT = (
+        "/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}/restore"
+    )

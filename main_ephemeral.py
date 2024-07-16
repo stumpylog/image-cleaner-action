@@ -148,11 +148,7 @@ def _main() -> None:
     #
     # Step 1 - gather the active package information
     #
-    container_reg_class = (
-        GithubContainerRegistryOrgApi
-        if config.is_org
-        else GithubContainerRegistryUserApi
-    )
+    container_reg_class = GithubContainerRegistryOrgApi if config.is_org else GithubContainerRegistryUserApi
     with container_reg_class(
         config.token,
         config.owner_or_org,

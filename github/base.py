@@ -82,10 +82,7 @@ class GithubApiBase:
                 logger.error(msg)
 
                 # If forbidden, check if it is rate limiting
-                if (
-                    resp.status_code == HTTPStatus.FORBIDDEN
-                    and "X-RateLimit-Remaining" in resp.headers
-                ):
+                if resp.status_code == HTTPStatus.FORBIDDEN and "X-RateLimit-Remaining" in resp.headers:
                     remaining = int(resp.headers["X-RateLimit-Remaining"])
                     if remaining <= 0:
                         raise RateLimitError
