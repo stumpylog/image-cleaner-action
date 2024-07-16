@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bulk update of pre-commit hooks
 - Bump certifi from 2024.2.2 to 2024.7.4 (by @dependabot in [#94](https://github.com/stumpylog/image-cleaner-action/pull/94))
+- Bump ruff from 0.5.0 to 0.5.2 (by @dependabot in [#96](https://github.com/stumpylog/image-cleaner-action/pull/96))
 
 ## [0.7.0] - 2024-06-03
 
