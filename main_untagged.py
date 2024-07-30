@@ -30,8 +30,7 @@ class Config:
 
 def _main() -> None:
     parser = common_args(
-        "Using the GitHub API locate and optionally delete container"
-        "images which are untagged",
+        "Using the GitHub API locate and optionally delete container images which are untagged",
     )
 
     config = Config(parser.parse_args())
@@ -63,11 +62,7 @@ def _main() -> None:
     #
     # Step 1 - gather the active package information
     #
-    container_reg_class = (
-        GithubContainerRegistryOrgApi
-        if config.is_org
-        else GithubContainerRegistryUserApi
-    )
+    container_reg_class = GithubContainerRegistryOrgApi if config.is_org else GithubContainerRegistryUserApi
     with container_reg_class(
         config.token,
         config.owner_or_org,

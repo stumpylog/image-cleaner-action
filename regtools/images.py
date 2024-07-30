@@ -23,13 +23,15 @@ def _handle_docker_inspect_with_timeout(name: str) -> dict:
     max_retries = 4
     wait_time_s = 5.0
     data = None
-    if shutil.which("docker") is None:
+    docker_exe = shutil.which("docker")
+    if docker_exe is None:
         raise OSError("docker executable not found")
+
     while (retry_count < max_retries) and data is None:
         try:
             proc = subprocess.run(
                 [
-                    shutil.which("docker"),
+                    docker_exe,
                     "buildx",
                     "imagetools",
                     "inspect",
@@ -113,8 +115,7 @@ class ImageIndexInfo:
                 "application/vnd.oci.image.index.v1+json",
                 "application/vnd.docker.distribution.manifest.list.v2+json",
             }
-            and "application/vnd.oci.image.layer"
-            not in self._data["manifests"][0]["mediaType"]
+            and "application/vnd.oci.image.layer" not in self._data["manifests"][0]["mediaType"]
         )
 
     @property

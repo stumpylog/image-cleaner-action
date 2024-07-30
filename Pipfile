@@ -9,7 +9,6 @@ github-action-utils = "*"
 
 [dev-packages]
 ruff = "*"
-black = "*"
 pre-commit = "*"
 mypy = "*"
 
