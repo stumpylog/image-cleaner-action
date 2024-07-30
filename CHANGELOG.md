@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump setuptools from 69.5.1 to 70.0.0 (by @dependabot in [#97](https://github.com/stumpylog/image-cleaner-action/pull/97))
 - Bump mypy from 1.10.1 to 1.11.0 (by @dependabot in [#99](https://github.com/stumpylog/image-cleaner-action/pull/99))
 - Bump ruff from 0.5.2 to 0.5.5 (by @dependabot in [#100](https://github.com/stumpylog/image-cleaner-action/pull/100))
+- Bump pre-commit from 3.7.1 to 3.8.0 (by @dependabot in [#101](https://github.com/stumpylog/image-cleaner-action/pull/101))
 
 ## [0.7.0] - 2024-06-03
 
