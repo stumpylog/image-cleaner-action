@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Bump mypy from 1.11.0 to 1.11.1 (by @dependabot in [#102](https://github.com/stumpylog/image-cleaner-action/pull/102))
+
 ## [0.8.0] - 2024-07-30
 
 ### Fixed
