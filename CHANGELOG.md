@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump mypy from 1.11.0 to 1.11.1 (by @dependabot in [#102](https://github.com/stumpylog/image-cleaner-action/pull/102))
+- Bump ruff from 0.5.5 to 0.6.1 (by @dependabot in [#105](https://github.com/stumpylog/image-cleaner-action/pull/105))
 
 ## [0.8.0] - 2024-07-30
 
