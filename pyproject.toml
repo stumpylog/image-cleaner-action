@@ -19,7 +19,7 @@ build-backend = "hatchling.build"
 fix = true
 line-length = 110
 respect-gitignore = true
-target-version = "py310"
+target-version = "py311"
 output-format = "grouped"
 show-fixes = true
 
