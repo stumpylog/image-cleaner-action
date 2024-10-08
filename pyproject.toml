@@ -1,32 +1,53 @@
 [project]
 name = "image-cleaner-action"
 version = "0.8.0"
-description = "Add your description here"
+description = "Tools to cleanup old ghcr.io images when the source is removed"
 readme = "README.md"
 requires-python = ">=3.11"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
 dependencies = [
-    "httpx[brotli,http2]>=0.27.0",
-    "github-action-utils>=1.1.0",
-    "typer-slim>=0.12.4",
+  "github-action-utils>=1.1",
+  "httpx[brotli,http2]>=0.27",
+  "typer-slim>=0.12.4",
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [tool.ruff]
-# https://docs.astral.sh/ruff/settings/
-fix = true
+target-version = "py311"
 line-length = 110
 respect-gitignore = true
-target-version = "py311"
-output-format = "grouped"
+# https://docs.astral.sh/ruff/settings/
+fix = true
 show-fixes = true
 
-[tool.ruff.lint]
+output-format = "grouped"
 # https://docs.astral.sh/ruff/rules/
-extend-select = ["F", "E", "W", "I", "UP", "COM", "EXE", "ISC", "ICN", "G201", "INP", "PIE", "RSE", "SIM", "TID", "PLC", "PLE", "RUF", "PTH"]
-
-[tool.ruff.lint.isort]
+lint.extend-select = [
+  "COM",
+  "E",
+  "EXE",
+  "F",
+  "G201",
+  "I",
+  "ICN",
+  "INP",
+  "ISC",
+  "PIE",
+  "PLC",
+  "PLE",
+  "PTH",
+  "RSE",
+  "RUF",
+  "SIM",
+  "TID",
+  "UP",
+  "W",
+]
 # https://docs.astral.sh/ruff/settings/#lintisort
-force-single-line = true
+lint.isort.force-single-line = true
+
+[tool.uv]
+dev-dependencies = [ "ruff", "pre-commit", "pre-commit-uv", "mypy" ]

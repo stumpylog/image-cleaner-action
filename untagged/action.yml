@@ -32,15 +32,9 @@ runs:
         python-version: '3.11'
     -
       name: Install uv
-      shell: bash
-      run: |
-        pip3 --quiet install --user uv==0.3.0
-    -
-      name: Install dependencies
-      shell: bash
-      run: |
-        cd ${{ github.action_path }}/..
-        uv sync --frozen
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "0.4.20"
     -
       name: Clean the images
       shell: bash
@@ -51,6 +45,7 @@ runs:
           --frozen \
           --quiet \
           --no-python-downloads \
+          --no-dev \
           --python ${{ steps.setup-python.outputs.python-version }} \
           ${{ github.action_path }}/../main_untagged.py \
           --token "${{ inputs.token }}" \
