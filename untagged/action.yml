@@ -35,7 +35,6 @@ runs:
       uses: astral-sh/setup-uv@v3
       with:
         version: "0.4.x"
-        enable-cache: true
     -
       name: Clean the images
       shell: bash
