@@ -2,8 +2,6 @@
 
 This repository contains two actions for solving problems with the GitHub Container Registry.
 
-These
-
 ## Ephemeral Image Removal
 
 Many actions in a repository will end up creating a Docker image stored on the GitHub Container Registry
