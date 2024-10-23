@@ -8,11 +8,11 @@ classifiers = [
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
   "github-action-utils>=1.1",
   "httpx[brotli,http2]>=0.27",
-  "typer-slim>=0.12.4",
 ]
 
 [tool.ruff]
