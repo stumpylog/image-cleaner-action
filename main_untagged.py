@@ -139,9 +139,7 @@ def _main() -> None:
         config.owner_or_org,
         config.is_org,
     ) as api:
-        for to_delete_name in untagged_versions:
-            to_delete_version = untagged_versions[to_delete_name]
-
+        for to_delete_name, to_delete_version in untagged_versions.items():
             if config.delete:
                 logger.info(
                     f"Deleting id {to_delete_version.id} named {to_delete_version.name}",
