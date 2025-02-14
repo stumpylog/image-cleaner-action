@@ -1,22 +1,21 @@
 [project]
 name = "image-cleaner-action"
-version = "0.9.0"
+version = "0.10.0"
 description = "Tools to cleanup old ghcr.io images when the source is removed"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
   "github-action-utils>=1.1",
-  "httpx[brotli,http2]>=0.27",
+  "httpx[brotli,http2]>=0.28",
 ]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 110
 respect-gitignore = true
 # https://docs.astral.sh/ruff/settings/
