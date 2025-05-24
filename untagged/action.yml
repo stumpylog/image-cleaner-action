@@ -32,9 +32,9 @@ runs:
         python-version: '3.12'
     -
       name: Install uv
-      uses: astral-sh/setup-uv@v5
+      uses: astral-sh/setup-uv@v6.1.0
       with:
-        version: "0.6.x"
+        version: "0.7.x"
         python-version: ${{ steps.setup-python.outputs.python-version }}
     -
       name: Clean the images

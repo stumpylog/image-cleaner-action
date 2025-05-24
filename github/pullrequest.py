@@ -31,13 +31,17 @@ class GithubPullRequestApi(GithubApiBase):
     def closed_pulls(self, owner: str, repo: str) -> list[PullRequest]:
         endpoint = self.LIST_PR_API_ENDPOINT.format(OWNER=owner, REPO=repo)
         query_params = {"state": "closed", "per_page": 100}
+        # resp is a list of dicts here
         resp = self._read_all_pages(endpoint, query_params=query_params)
-        resp.raise_for_status()
-        return [PullRequest(x) for x in resp.json()]
+        # No raise_for_status() or .json() needed on the list itself
+        return [PullRequest(x) for x in resp]
 
     def open_pulls(self, owner: str, repo: str) -> list[PullRequest]:
         endpoint = self.LIST_PR_API_ENDPOINT.format(OWNER=owner, REPO=repo)
-        query_params = {"state": "closed", "per_page": 100}
+        # The original code had 'state': 'closed' here, which is a bug for open_pulls.
+        # This should be 'open'.
+        query_params = {"state": "open", "per_page": 100}
+        # resp is a list of dicts here
         resp = self._read_all_pages(endpoint, query_params=query_params)
-        resp.raise_for_status()
-        return [PullRequest(x) for x in resp.json()]
+        # No raise_for_status() or .json() needed on the list itself
+        return [PullRequest(x) for x in resp]

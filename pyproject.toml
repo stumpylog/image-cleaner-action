@@ -15,7 +15,19 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [ "mypy", "pre-commit", "pre-commit-uv", "ruff" ]
+dev = [
+  "coverage[toml]~=7.8",
+  "mypy",
+  "pre-commit",
+  "pre-commit-uv",
+  "pytest",
+  "pytest-cov",
+  "pytest-httpx",
+  "pytest-mock",
+  "pytest-randomly",
+  "pytest-sugar",
+  "ruff",
+]
 
 [tool.ruff]
 target-version = "py312"
@@ -50,6 +62,34 @@ lint.extend-select = [
 ]
 # https://docs.astral.sh/ruff/settings/#lintisort
 lint.isort.force-single-line = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = [ "tests" ]
+pythonpath = [ "." ]
+addopts = "--import-mode=importlib --cov"
+
+[tool.coverage.run]
+source_pkgs = [ "github", "regtools", "utils", "tests" ]
+branch = true
+parallel = true
+omit = [
+  "src/gotenberg_client/__about__.py",
+  "tests/conftest.py",
+  "tests/utils.py",
+]
+
+[tool.coverage.paths]
+gotenberg_client = [ "src/gotenberg_client" ]
+tests = [ "tests" ]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == '__main__':",
+  "if TYPE_CHECKING:",
+  "if SAVE_OUTPUTS:",
+]
 
 [tool.uv]
 package = false
