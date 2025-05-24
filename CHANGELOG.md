@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Initial unit testing of the GitHub API interactions
+
 ### Changed
 
-- Updated astral-sh/setup-uv to v5
-- Updates `uv` to 0.6.x
+- Updated astral-sh/setup-uv to v6.1.0
+- Updates `uv` to 0.67.x
 - Updates locked dependencies
 
 ## [0.10.0] - 2025-02-14
