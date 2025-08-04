@@ -121,7 +121,7 @@ def _main() -> None:
             # TODO Make it clear for digests which are multi-tagged (latest, x.x.y)
             # they are not being deleted too
 
-    if not len(untagged_versions):
+    if not untagged_versions:
         logger.info("Nothing to do")
         return
 

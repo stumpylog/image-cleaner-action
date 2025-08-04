@@ -176,7 +176,7 @@ def _main() -> None:
         for tag in pkg.tags:
             all_pkgs_tags_to_version[tag] = pkg
 
-    if not len(pkgs_matching_re):
+    if not pkgs_matching_re:
         logger.info("No packages to consider")
         return
     else:
