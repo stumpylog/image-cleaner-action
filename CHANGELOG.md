@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated astral-sh/setup-uv to v6.1.0
-- Updates `uv` to 0.67.x
+- Updated astral-sh/setup-uv to v6.4.3
+- Updates `uv` to 0.8.x
 - Updates locked dependencies
 
 ## [0.10.0] - 2025-02-14
