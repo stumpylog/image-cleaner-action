@@ -13,7 +13,7 @@ jobs:
     steps:
       -
         name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       -
         name: Check files
         uses: pre-commit/action@v3.0.1
@@ -25,7 +25,7 @@ jobs:
     steps:
       -
         name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       -
         name: Install Python
         uses: actions/setup-python@v5
@@ -54,7 +54,7 @@ jobs:
       - tests
     steps:
       -
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       -
         name: Get latest release info
         id: query-release-info
