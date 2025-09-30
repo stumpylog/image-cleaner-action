@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Updates locked dependencies
+- Bumps actions/checkout from 4 to 5
 
 ## [0.11.0] - 2025-08-04
 
