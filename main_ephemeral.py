@@ -39,7 +39,7 @@ class Config:
             re.compile(self.match_regex)
 
 
-def _get_tags_to_delete_pull_request(
+async def _get_tags_to_delete_pull_request(
     args: Config,
     matched_packages: list[ContainerPackage],
 ) -> list[str]:
@@ -50,7 +50,7 @@ def _get_tags_to_delete_pull_request(
     """
     pkgs_with_closed_pr = []
 
-    with GithubPullRequestApi(args.token) as api:
+    async with GithubPullRequestApi(args.token) as api:
         for pkg in matched_packages:
             # Don't consider images tagged with more than 1
             # These are more tricky and an owner should evaluate them one by one
@@ -66,7 +66,7 @@ def _get_tags_to_delete_pull_request(
                     if x is not None:
                         pr_number = int(x)
                         break
-                if pr_number and api.get(args.owner_or_org, args.repo, pr_number).closed:
+                if pr_number and (await api.get(args.owner_or_org, args.repo, pr_number)).closed:
                     pkgs_with_closed_pr.append(pkg)
                 elif not pr_number:
                     logger.warning(f"Could not extract PR number from tag {pkg.tags[0]}")
@@ -75,7 +75,7 @@ def _get_tags_to_delete_pull_request(
     return [x.tags[0] for x in pkgs_with_closed_pr]
 
 
-def _get_tag_to_delete_branch(
+async def _get_tag_to_delete_branch(
     args: Config,
     matched_packages: list[ContainerPackage],
 ) -> list[str]:
@@ -96,8 +96,8 @@ def _get_tag_to_delete_branch(
     logger.info(f"Found {len(pkg_tags_to_version)} tags to consider")
 
     branches_matching_re = {}
-    with GithubBranchApi(args.token) as api:
-        for branch in api.branches(args.owner_or_org, args.repo):
+    async with GithubBranchApi(args.token) as api:
+        for branch in await api.branches(args.owner_or_org, args.repo):
             if branch.matches(args.match_regex):
                 branches_matching_re[branch.name] = branch
 
@@ -106,7 +106,7 @@ def _get_tag_to_delete_branch(
     return list(set(pkg_tags_to_version.keys()) - set(branches_matching_re.keys()))
 
 
-def _main() -> None:
+async def _main() -> None:
     parser = common_args(
         "Using the GitHub API locate and optionally delete container"
         " tags which no longer have an associated branch or pull request",
@@ -142,8 +142,8 @@ def _main() -> None:
 
     logger.info("Starting processing")
 
-    with GithubRateLimitApi(config.token) as api:
-        current_limits = api.limits()
+    async with GithubRateLimitApi(config.token) as api:
+        current_limits = await api.limits()
         if current_limits.limited:
             logger.error(
                 f"Currently rate limited, reset at {current_limits.reset_time}",
@@ -156,14 +156,14 @@ def _main() -> None:
     # Step 1 - gather the active package information
     #
     container_reg_class = GithubContainerRegistryOrgApi if config.is_org else GithubContainerRegistryUserApi
-    with container_reg_class(
+    async with container_reg_class(
         config.token,
         config.owner_or_org,
         config.is_org,
     ) as api:
         logger.info("Getting active packages")
         # Get the active (not deleted) packages
-        active_versions = api.active_versions(config.package_name)
+        active_versions = await api.active_versions(config.package_name)
         logger.info(f"{len(active_versions)} active packages")
 
     #
@@ -194,10 +194,10 @@ def _main() -> None:
     #
     if config.scheme == "branch":
         logger.info("Looking at branches for deletion considerations")
-        tags_to_delete = _get_tag_to_delete_branch(config, pkgs_matching_re)
+        tags_to_delete = await _get_tag_to_delete_branch(config, pkgs_matching_re)
     elif config.scheme == "pull_request":
         logger.info("Looking at pull requests for deletion considerations")
-        tags_to_delete = _get_tags_to_delete_pull_request(config, pkgs_matching_re)
+        tags_to_delete = await _get_tags_to_delete_pull_request(config, pkgs_matching_re)
 
     tags_to_keep = list(set(all_pkgs_tags_to_version.keys()) - set(tags_to_delete))
 
@@ -210,7 +210,7 @@ def _main() -> None:
     #
     # Step 4 - Delete the stale packages
     #
-    with container_reg_class(
+    async with container_reg_class(
         config.token,
         config.owner_or_org,
         config.is_org,
@@ -222,7 +222,7 @@ def _main() -> None:
                 logger.info(
                     f"Deleting id {to_delete_version.id} named {to_delete_version.name}",
                 )
-                api.delete(
+                await api.delete(
                     to_delete_version,
                 )
             else:
@@ -235,14 +235,16 @@ def _main() -> None:
     #
     if config.delete:
         logger.info("Beginning confirmation step")
-        check_tags_still_valid(config.owner_or_org, config.package_name, tags_to_keep)
+        await check_tags_still_valid(config.owner_or_org, config.package_name, tags_to_keep)
     else:
         logger.info("Dry run, not checking image manifests")
 
 
 if __name__ == "__main__":
+    import asyncio
+
     try:
-        _main()
+        asyncio.run(_main())
     except RateLimitError:
         logger.error("Rate limit hit during execution")
         gha_utils.error("Rate limit hit during execution")

@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This should be much faster to determine both items now
   - HTTP calls include automatic retry with exponential backoff and jitter
   - HTTP calls handle authenticating with a temporary token to the registry, including expiration
+- `uv` caching should now be enabled
+
+### Fixed
+
+- Various warnings from astral-sh/setup-uv have been silenced or fixed
 
 ## [0.11.0] - 2025-08-04
 

@@ -36,6 +36,11 @@ runs:
       with:
         version: "0.8.x"
         python-version: ${{ steps.setup-python.outputs.python-version }}
+        ignore-empty-workdir: true
+        enable-cache: true
+        cache-dependency-glob: |
+          ${{ github.action_path }}/../**/pyproject.toml
+          ${{ github.action_path }}/../**/uv.lock
     -
       name: Clean the images
       shell: bash

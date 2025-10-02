@@ -1,8 +1,9 @@
+import asyncio
 import logging
 import os
 import re
 import time
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -81,12 +82,15 @@ class BearerAuth(httpx.Auth):
 
     __slots__ = ("_client", "_token", "_tokens")
 
-    def __init__(self, client: httpx.Client, token: str | None = None) -> None:
+    def __init__(self, client: httpx.AsyncClient, token: str | None = None) -> None:
         self._tokens: dict[str, CachedToken] = {}
         self._client = client
         self._token = token or os.getenv("GITHUB_TOKEN")
 
-    def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
+    async def async_auth_flow(
+        self,
+        request: httpx.Request,
+    ) -> AsyncGenerator[httpx.Request, httpx.Response]:
         """
         Handles the full authentication flow, including token acquisition.
         """
@@ -125,10 +129,11 @@ class BearerAuth(httpx.Auth):
         if self._token:
             headers["Authorization"] = f"Bearer {self._token}"
 
-        token_resp = self._client.get(
+        token_resp = await self._client.get(
             token_url,
             params={"service": service, "scope": scope},
             headers=headers,
+            auth=None,
         )
         token_resp.raise_for_status()
 
@@ -167,21 +172,21 @@ class RegistryClient:
                 ],
             ),
         )
-        self._client = httpx.Client(
+        self._client = httpx.AsyncClient(
             base_url=self.base_url,
             transport=transport,
             follow_redirects=True,
         )
         self._client.auth = BearerAuth(self._client)
 
-    def __enter__(self) -> Self:
+    async def __aenter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Exit the context manager and close the client."""
-        self.close()
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Exit the async context manager and close the client."""
+        await self.close()
 
-    def get_manifest(self, repository: str, reference: str) -> AnyManifest:
+    async def get_manifest(self, repository: str, reference: str) -> AnyManifest:
         """
         Fetches a manifest or index by tag or digest.
 
@@ -193,7 +198,7 @@ class RegistryClient:
         headers = {"Accept": ACCEPT_HEADER}
 
         logger.debug(f"Requesting manifest: {self.base_url}{manifest_url}")
-        resp = self._client.get(manifest_url, headers=headers)
+        resp = await self._client.get(manifest_url, headers=headers)
         resp.raise_for_status()
 
         parsed_json = resp.json()
@@ -203,9 +208,9 @@ class RegistryClient:
 
         return get_parsed_type(media_type, parsed_json)
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """Closes the underlying HTTP client."""
-        self._client.close()
+        await self._client.aclose()
 
 
 def format_platform(platform_data: Mapping[str, Any]) -> str:
@@ -216,50 +221,98 @@ def format_platform(platform_data: Mapping[str, Any]) -> str:
     return f"{os}/{arch}{variant}"
 
 
-def check_tags_still_valid(owner: str, name: str, tags: list[str]) -> None:
+async def _check_single_tag(
+    client: RegistryClient,
+    repository: str,
+    tag: str,
+    semaphore: asyncio.Semaphore,
+) -> bool:
+    """
+    Checks a single tag and all its referenced digests.
+    Returns True if any check failed, False if all succeeded.
+    """
+    qualified_name = f"ghcr.io/{repository}:{tag}"
+    tag_failed = False
+
+    try:
+        logger.info(f"Checking {qualified_name}")
+        root_manifest = await client.get_manifest(repository, tag)
+
+        # Check if the root manifest is an image index (multi-arch)
+        if is_multi_arch_media_type(root_manifest):
+            logger.info(f"{qualified_name} is a multi-arch image index.")
+
+            # Collect all digest check tasks
+            digest_tasks = []
+            for manifest_descriptor in root_manifest.get("manifests", []):
+                digest = manifest_descriptor.get("digest")
+                if not digest:
+                    continue
+                platform = format_platform(manifest_descriptor.get("platform", {}))
+                digest_tasks.append(_check_digest(client, repository, digest, platform, semaphore))
+
+            # Check all digests concurrently with semaphore limit
+            if digest_tasks:
+                results = await asyncio.gather(*digest_tasks, return_exceptions=True)
+                tag_failed = any(isinstance(r, Exception) or r for r in results)
+        else:
+            # This is a single-platform image, and we've already fetched it.
+            logger.info(f"{qualified_name} is a single-platform image, check successful.")
+
+    except httpx.HTTPError as e:
+        tag_failed = True
+        logger.error(f"Failed to inspect initial tag {qualified_name}: {e}")
+        gha_utils.error(
+            message=f"Tag {qualified_name} failed to inspect and may no longer be valid.",
+            title=f"Verification failure: {qualified_name}",
+        )
+
+    return tag_failed
+
+
+async def _check_digest(
+    client: RegistryClient,
+    repository: str,
+    digest: str,
+    platform: str,
+    semaphore: asyncio.Semaphore,
+) -> bool:
+    """
+    Checks a single digest manifest.
+    Returns True if check failed, False if succeeded.
+    """
+    async with semaphore:
+        digest_name = f"ghcr.io/{repository}@{digest}"
+        logger.info(f"Checking digest {digest} for platform {platform}")
+
+        try:
+            await client.get_manifest(repository, digest)
+            logger.debug(f"Successfully inspected {digest_name}")
+            return False
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to inspect digest {digest_name}: {e}")
+            return True
+
+
+async def check_tags_still_valid(owner: str, name: str, tags: list[str]) -> None:
     """
     Checks if a list of tags and all their referenced image manifests are still valid
     by fetching them directly from the registry API.
+
+    Tags are checked with concurrency limited to 10 requests at a time.
     """
     repository = f"{owner}/{name}"
-    any_tag_failed = False
 
-    with RegistryClient(host="ghcr.io") as client:
-        for tag in tags:
-            qualified_name = f"ghcr.io/{repository}:{tag}"
-            try:
-                logger.info(f"Checking {qualified_name}")
-                root_manifest = client.get_manifest(repository, tag)
+    async with RegistryClient(host="ghcr.io") as client:
+        # Create a semaphore to limit concurrent requests
+        semaphore = asyncio.Semaphore(10)
 
-                # Check if the root manifest is an image index (multi-arch)
-                if is_multi_arch_media_type(root_manifest):
-                    logger.info(f"{qualified_name} is a multi-arch image index.")
+        # Check all tags with limited concurrency
+        tag_tasks = [_check_single_tag(client, repository, tag, semaphore) for tag in tags]
+        results = await asyncio.gather(*tag_tasks, return_exceptions=True)
 
-                    for manifest_descriptor in root_manifest.get("manifests", []):
-                        digest = manifest_descriptor.get("digest")
-                        if not digest:
-                            continue
-                        platform = format_platform(manifest_descriptor.get("platform", {}))
-                        digest_name = f"ghcr.io/{repository}@{digest}"
-                        logger.info(f"Checking digest {digest} for platform {platform}")
-
-                        try:
-                            client.get_manifest(repository, digest)
-                            logger.debug(f"Successfully inspected {digest_name}")
-                        except httpx.HTTPError as e:
-                            any_tag_failed = True
-                            logger.error(f"Failed to inspect digest {digest_name}: {e}")
-                else:
-                    # This is a single-platform image, and we've already fetched it.
-                    logger.info(f"{qualified_name} is a single-platform image, check successful.")
-
-            except httpx.HTTPError as e:
-                any_tag_failed = True
-                logger.error(f"Failed to inspect initial tag {qualified_name}: {e}")
-                gha_utils.error(
-                    message=f"Tag {qualified_name} failed to inspect and may no longer be valid.",
-                    title=f"Verification failure: {qualified_name}",
-                )
+        # Check if any failures occurred
+        any_tag_failed = any(isinstance(r, Exception) or r for r in results)
 
     if any_tag_failed:
         msg = "One or more tags or their digests failed to inspect and may no longer be valid."

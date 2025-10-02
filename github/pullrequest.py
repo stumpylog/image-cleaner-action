@@ -19,28 +19,28 @@ class GithubPullRequestApi(GithubApiBase):
     GET_PR_API_ENDPOINT = "/repos/{OWNER}/{REPO}/pulls/{PULL_NUMBER}"
     LIST_PR_API_ENDPOINT = "/repos/{OWNER}/{REPO}/pulls"
 
-    def get(self, owner: str, repo: str, number: int) -> PullRequest:
+    async def get(self, owner: str, repo: str, number: int) -> PullRequest:
         endpoint = self.GET_PR_API_ENDPOINT.format(
             OWNER=owner,
             REPO=repo,
             PULL_NUMBER=number,
         )
-        resp = self._client.get(endpoint)
+        resp = await self._client.get(endpoint)
         resp.raise_for_status()
         return PullRequest(resp.json())
 
-    def closed_pulls(self, owner: str, repo: str) -> list[PullRequest]:
+    async def closed_pulls(self, owner: str, repo: str) -> list[PullRequest]:
         endpoint = self.LIST_PR_API_ENDPOINT.format(OWNER=owner, REPO=repo)
         query_params = {"state": "closed", "per_page": 100}
         # resp is a list of dicts here
-        resp: list[SimplePullRequest] = self._read_all_pages(endpoint, query_params=query_params)
+        resp: list[SimplePullRequest] = await self._read_all_pages(endpoint, query_params=query_params)
         # No raise_for_status() or .json() needed on the list itself
         return [PullRequest(x) for x in resp]
 
-    def open_pulls(self, owner: str, repo: str) -> list[PullRequest]:
+    async def open_pulls(self, owner: str, repo: str) -> list[PullRequest]:
         endpoint = self.LIST_PR_API_ENDPOINT.format(OWNER=owner, REPO=repo)
         query_params = {"state": "open", "per_page": 100}
         # resp is a list of dicts here
-        resp: list[SimplePullRequest] = self._read_all_pages(endpoint, query_params=query_params)
+        resp: list[SimplePullRequest] = await self._read_all_pages(endpoint, query_params=query_params)
         # No raise_for_status() or .json() needed on the list itself
         return [PullRequest(x) for x in resp]
