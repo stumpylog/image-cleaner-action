@@ -22,7 +22,7 @@ class TestGithubContainerRegistryOrgApi:
                 "id": 42,
                 "url": "https://api.github.com/orgs/test-org/packages/container/pkg/versions/42",
                 "metadata": {"container": {"tags": []}},
-            },
+            },  # type: ignore[arg-type]
         )
         httpx_mock.add_response(method="DELETE", url=pkg_data.url, status_code=204)
 
@@ -57,7 +57,7 @@ class TestGithubContainerRegistryUserApi:
                 "id": 99,
                 "url": "https://api.github.com/user/packages/container/pkg/versions/99",
                 "metadata": {"container": {"tags": []}},
-            },
+            },  # type: ignore[arg-type]
         )
         httpx_mock.add_response(method="DELETE", url=pkg_data.url, status_code=204)
 

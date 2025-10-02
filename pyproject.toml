@@ -60,6 +60,7 @@ lint.extend-select = [
   "UP",
   "W",
 ]
+lint.per-file-ignores."github/models/**" = [ "E501" ]
 # https://docs.astral.sh/ruff/settings/#lintisort
 lint.isort.force-single-line = true
 

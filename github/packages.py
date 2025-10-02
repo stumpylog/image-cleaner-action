@@ -8,6 +8,8 @@ import github_action_utils as gha_utils
 
 from github.base import GithubApiBase
 from github.base import GithubEndpointResponse
+from github.models.packages.organization import Package as OrgPackage
+from github.models.packages.user import Package as UserPackage
 from utils.errors import RateLimitError
 
 logger = logging.getLogger(__name__)
@@ -19,8 +21,8 @@ class ContainerPackage(GithubEndpointResponse):
     endpoints
     """
 
-    def __init__(self, data: dict):
-        super().__init__(data)
+    def __init__(self, data: UserPackage | OrgPackage):
+        super().__init__(data)  # type: ignore[arg-type]
         # This is a numerical ID, required for interactions with this
         # specific package, including deletion of it or restoration
         self.id: int = self._data["id"]
@@ -63,9 +65,9 @@ class ContainerPackage(GithubEndpointResponse):
 
 
 class _GithubContainerRegistryApiBase(GithubApiBase):
-    PACKAGE_VERSIONS_ENDPOINT = ""
-    PACKAGE_VERSION_DELETE_ENDPOINT = ""
-    PACKAGE_VERSION_RESTORE_ENDPOINT = ""
+    PACKAGE_VERSIONS_ENDPOINT: str = ""
+    PACKAGE_VERSION_DELETE_ENDPOINT: str = ""
+    PACKAGE_VERSION_RESTORE_ENDPOINT: str = ""
 
     def __init__(self, token: str, owner_or_org: str, is_org: bool = False) -> None:
         super().__init__(token)
@@ -75,6 +77,7 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
     def versions(
         self,
         package_name: str,
+        *,
         active: bool | None = None,
     ) -> list[ContainerPackage]:
         """
@@ -112,13 +115,13 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
         self,
         package_name: str,
     ) -> list[ContainerPackage]:
-        return self.versions(package_name, True)
+        return self.versions(package_name, active=True)
 
     def deleted_versions(
         self,
         package_name: str,
     ) -> list[ContainerPackage]:
-        return self.versions(package_name, False)
+        return self.versions(package_name, active=False)
 
     def delete(self, package_data: ContainerPackage):
         """
@@ -171,7 +174,7 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
 class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase):
     """
     Class wrapper to deal with the GitHub packages API.  This class only deals with
-    container type packages, the only type published by paperless-ngx.
+    container type packages.
     This class is for organizations
     """
 
@@ -187,7 +190,7 @@ class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase):
 class GithubContainerRegistryUserApi(_GithubContainerRegistryApiBase):
     """
     Class wrapper to deal with the GitHub packages API.  This class only deals with
-    container type packages, the only type published by paperless-ngx.
+    container type packages.
     This class is for user owned packages
     """
 
