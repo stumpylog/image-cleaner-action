@@ -9,11 +9,12 @@ class TestGithubBranchApi:
     def api(self, branch_api):
         return branch_api
 
-    def test_branches_success(self, httpx_mock, api: GithubBranchApi):
+    @pytest.mark.asyncio
+    async def test_branches_success(self, httpx_mock, api: GithubBranchApi):
         response_data = [{"name": "main"}, {"name": "dev"}]
         httpx_mock.add_response(json=response_data)
 
-        result = api.branches("owner", "repo")
+        result = await api.branches("owner", "repo")
 
         assert isinstance(result, list)
         assert all(isinstance(branch, GithubBranch) for branch in result)
