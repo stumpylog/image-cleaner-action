@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updates locked dependencies
 - Bumps actions/checkout from 4 to 5
 - Updated astral-sh/setup-uv to v6.8.0
+- Responses from the GitHub API are now typed using models derived from the JSON schema provided in the documentation
+- Implement `RegistryClient` for talking directly with a compliant registry host
+  - Determination of the tagged/untagged status for multi-architecture images now directly uses the registry instead of calling `docker` via subprocess
+  - Validation the registry still holds all tags and multi-arch pointers now uses the registry as well
+  - This should be much faster to determine both items now
+  - HTTP calls include automatic retry with exponential backoff and jitter
+  - HTTP calls handle authenticating with a temporary token to the registry, including expiration
 
 ## [0.11.0] - 2025-08-04
 

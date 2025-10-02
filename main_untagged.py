@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import logging
-from typing import TYPE_CHECKING
 
 import github_action_utils as gha_utils
 import httpx
@@ -11,11 +10,9 @@ from github.packages import GithubContainerRegistryOrgApi
 from github.packages import GithubContainerRegistryUserApi
 from github.ratelimit import GithubRateLimitApi
 from regtools.images import RegistryClient
-from regtools.images import check_tag_still_valid
+from regtools.images import check_tags_still_valid
 from regtools.images import format_platform
 from regtools.images import is_multi_arch_media_type
-from regtools.models import DockerManifestList
-from regtools.models import OCIImageIndex
 from utils import coerce_to_bool
 from utils import common_args
 from utils import get_log_level
@@ -114,9 +111,7 @@ def _main() -> None:
 
             # If it's a multi-arch index, check its digests
             if is_multi_arch_media_type(manifest):
-                if TYPE_CHECKING:
-                    manifest: OCIImageIndex | DockerManifestList
-                for descriptor in manifest["manifests"]:
+                for descriptor in manifest.get("manifests", []):
                     digest = descriptor.get("digest")
                     if digest and digest in untagged_versions:
                         platform = format_platform(descriptor.get("platform", {}))
@@ -138,7 +133,7 @@ def _main() -> None:
     )
 
     #
-    # Step 4 - Delete the actually untagged packages
+    # Step 3 - Delete the actually untagged packages
     #
     # Delete the untagged and not pointed at packages
     logger.info(f"Deleting untagged packages of {config.package_name}")
@@ -161,12 +156,11 @@ def _main() -> None:
                 )
 
     #
-    # Step 5 - Be really sure the remaining tags look a-ok
+    # Step 4 - Be really sure the remaining tags look a-ok
     #
     if config.delete:
         logger.info("Beginning confirmation step")
-        for tag in tags_to_keep:
-            check_tag_still_valid(config.owner_or_org, config.package_name, tag)
+        check_tags_still_valid(config.owner_or_org, config.package_name, tags_to_keep)
     else:
         logger.info("Dry run, not checking images")
 

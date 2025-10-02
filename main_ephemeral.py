@@ -11,7 +11,7 @@ from github.packages import GithubContainerRegistryOrgApi
 from github.packages import GithubContainerRegistryUserApi
 from github.pullrequest import GithubPullRequestApi
 from github.ratelimit import GithubRateLimitApi
-from regtools.images import check_tag_still_valid
+from regtools.images import check_tags_still_valid
 from utils import coerce_to_bool
 from utils import common_args
 from utils import get_log_level
@@ -53,17 +53,24 @@ def _get_tags_to_delete_pull_request(
     with GithubPullRequestApi(args.token) as api:
         for pkg in matched_packages:
             # Don't consider images tagged with more than 1
+            # These are more tricky and an owner should evaluate them one by one
+            # This only happens sometimes and probably is a mistake, but we shouldn't assume
             if len(pkg.tags) > 1:
+                logger.debug(f"Skipping multi-tagged image: {pkg.tags}")
                 continue
             match = re.match(args.match_regex, pkg.tags[0])
+            pr_number = None
             if match is not None:
                 # use the first not None capture group as the PR number
                 for x in match.groups():
                     if x is not None:
                         pr_number = int(x)
                         break
-                if api.get(args.owner_or_org, args.repo, pr_number).closed:
+                if pr_number and api.get(args.owner_or_org, args.repo, pr_number).closed:
                     pkgs_with_closed_pr.append(pkg)
+                elif not pr_number:
+                    logger.warning(f"Could not extract PR number from tag {pkg.tags[0]}")
+                    continue
 
     return [x.tags[0] for x in pkgs_with_closed_pr]
 
@@ -191,9 +198,6 @@ def _main() -> None:
     elif config.scheme == "pull_request":
         logger.info("Looking at pull requests for deletion considerations")
         tags_to_delete = _get_tags_to_delete_pull_request(config, pkgs_matching_re)
-    else:
-        # Configuration validation prevents any other option
-        pass
 
     tags_to_keep = list(set(all_pkgs_tags_to_version.keys()) - set(tags_to_delete))
 
@@ -231,8 +235,7 @@ def _main() -> None:
     #
     if config.delete:
         logger.info("Beginning confirmation step")
-        for tag in tags_to_keep:
-            check_tag_still_valid(config.owner_or_org, config.package_name, tag)
+        check_tags_still_valid(config.owner_or_org, config.package_name, tags_to_keep)
     else:
         logger.info("Dry run, not checking image manifests")
 

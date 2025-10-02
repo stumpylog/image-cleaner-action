@@ -1,17 +1,20 @@
 import logging
 import os
 import re
-from collections.abc import Iterator
+import time
+from collections.abc import Generator
 from collections.abc import Mapping
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
 from typing import Any
 from typing import Self
+from typing import TypeGuard
 from typing import cast
 
 import github_action_utils as gha_utils
 import httpx
+from httpx_retries import Retry
+from httpx_retries import RetryTransport
 
-# Assuming models.py is in the same directory or accessible in the python path
 from regtools.models import DockerManifestList
 from regtools.models import DockerManifestV2
 from regtools.models import OCIImageIndex
@@ -32,13 +35,14 @@ ACCEPT_HEADER = (
 
 logger = logging.getLogger(__name__)
 
-# --- Type Aliases ---
 AnyManifest = OCIImageIndex | DockerManifestList | OCIManifest | DockerManifestV2
 AnyIndex = OCIImageIndex | DockerManifestList
 
 
 def get_parsed_type(media_type: str, parsed_json: dict[str, Any]) -> AnyManifest:
-    """Casts a parsed JSON dict to the correct TypedDict model based on mediaType."""
+    """
+    Casts a parsed JSON dict to the correct TypedDict model based on mediaType.
+    """
     if media_type == OCI_INDEX_MEDIA_TYPE:
         return cast(OCIImageIndex, parsed_json)
     if media_type == DOCKER_MANIFEST_LIST_MEDIA_TYPE:
@@ -51,44 +55,61 @@ def get_parsed_type(media_type: str, parsed_json: dict[str, Any]) -> AnyManifest
     raise ValueError(f"Unknown media type: {media_type}")
 
 
-def is_multi_arch_media_type(data: AnyManifest) -> bool:
+def is_multi_arch_media_type(data: AnyManifest) -> TypeGuard[AnyIndex]:
+    """
+    Type guard to narrow AnyManifest to AnyIndex (multi-arch types).
+    """
     return data.get("mediaType", "") in {OCI_INDEX_MEDIA_TYPE, DOCKER_MANIFEST_LIST_MEDIA_TYPE}
+
+
+@dataclass(frozen=True, slots=True)
+class CachedToken:
+    """
+    A cached bearer token with expiration tracking.
+    """
+
+    token: str
+    expires_at: float
 
 
 class BearerAuth(httpx.Auth):
     """
     Custom authentication handler for httpx to manage registry bearer tokens.
-    It automatically fetches and caches tokens based on the repository scope.
+    It automatically fetches and caches tokens based on the repository scope,
+    with expiration tracking to avoid using stale tokens.
     """
 
-    def __init__(self, client: httpx.Client) -> None:
-        self._tokens: dict[str, str] = {}
-        self._client = client
-        # For GHCR, auth requires a username, which can be the GITHUB_TOKEN owner
-        # or a placeholder like 'x-access-token' when using a PAT.
-        self._user = os.getenv("GITHUB_ACTOR", "x-access-token")
-        self._password = os.getenv("GITHUB_TOKEN")
+    __slots__ = ("_client", "_token", "_tokens")
 
-    def auth_flow(self, request: httpx.Request) -> Iterator[httpx.Request]:
-        """Handles the full authentication flow, including token acquisition."""
-        # Extract the repository from the URL, e.g., 'v2/owner/repo/manifests/tag'
-        repo_match = re.search(r"/v2/([^/]+/[^/]+)/", request.url.path)
+    def __init__(self, client: httpx.Client, token: str | None = None) -> None:
+        self._tokens: dict[str, CachedToken] = {}
+        self._client = client
+        self._token = token or os.getenv("GITHUB_TOKEN")
+
+    def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
+        """
+        Handles the full authentication flow, including token acquisition.
+        """
+        # Extract the repository from the URL
+        repo_match = re.search(r"/v2/(.+?)/(manifests|blobs)/", request.url.path)
         if not repo_match:
-            raise ValueError("Could not determine repository from URL")
+            raise ValueError(f"Could not determine repository from URL: {request.url.path}")
+
         scope = f"repository:{repo_match.group(1)}:pull"
 
-        # If we have a token for this scope, use it
-        if token := self._tokens.get(scope):
-            request.headers["Authorization"] = f"Bearer {token}"
+        # Check if we have a valid cached token for this scope
+        if (cached := self._tokens.get(scope)) and time.time() < cached.expires_at:
+            request.headers["Authorization"] = f"Bearer {cached.token}"
             yield request
             return
 
-        # Try the request unauthenticated first to get the 'Www-Authenticate' header
-        response = yield request
-        if response.status_code != 401 or "Www-Authenticate" not in response.headers:
-            return  # Not an auth challenge, let the client handle it
+        # Try the request unauthenticated first to get the auth challenge
+        response: httpx.Response = yield request
 
-        # Parse the 'Www-Authenticate' header to find the token service URL
+        if response.status_code != httpx.codes.UNAUTHORIZED or "Www-Authenticate" not in response.headers:
+            return
+
+        # Parse the authentication challenge
         auth_header = response.headers["Www-Authenticate"]
         realm_match = re.search(r'Bearer realm="([^"]+)"', auth_header)
         service_match = re.search(r'service="([^"]+)"', auth_header)
@@ -99,18 +120,30 @@ class BearerAuth(httpx.Auth):
         token_url = realm_match.group(1)
         service = service_match.group(1)
 
-        # Request a new token from the authentication service
-        auth = (self._user, self._password) if self._password else None
+        # Request a new token - use PAT as Bearer if available
+        headers = {}
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
+
         token_resp = self._client.get(
             token_url,
             params={"service": service, "scope": scope},
-            auth=auth,
+            headers=headers,
         )
         token_resp.raise_for_status()
-        new_token = token_resp.json()["token"]
+
+        token_data = token_resp.json()
+        if "token" not in token_data:
+            raise ValueError(f"Token response missing 'token' field: {token_data}")
+
+        new_token = token_data["token"]
+        # GHCR tokens typically expire in 300 seconds (5 minutes)
+        # Use a 30 second buffer to avoid edge cases
+        expires_in = token_data.get("expires_in", 300)
+        expires_at = time.time() + expires_in - 30
 
         # Cache the token and retry the original request
-        self._tokens[scope] = new_token
+        self._tokens[scope] = CachedToken(token=new_token, expires_at=expires_at)
         request.headers["Authorization"] = f"Bearer {new_token}"
         yield request
 
@@ -122,7 +155,18 @@ class RegistryClient:
         self.host = host
         self.base_url = f"https://{self.host}"
         # Use a transport with retries for network resilience
-        transport = httpx.HTTPTransport(retries=4)
+        transport = RetryTransport(
+            retry=Retry(
+                backoff_factor=0.5,
+                status_forcelist=[
+                    httpx.codes.TOO_MANY_REQUESTS,  # 429
+                    httpx.codes.INTERNAL_SERVER_ERROR,  # 500
+                    httpx.codes.BAD_GATEWAY,  # 502
+                    httpx.codes.SERVICE_UNAVAILABLE,  # 503
+                    httpx.codes.GATEWAY_TIMEOUT,  # 504
+                ],
+            ),
+        )
         self._client = httpx.Client(
             base_url=self.base_url,
             transport=transport,
@@ -172,53 +216,53 @@ def format_platform(platform_data: Mapping[str, Any]) -> str:
     return f"{os}/{arch}{variant}"
 
 
-def check_tag_still_valid(owner: str, name: str, tag: str) -> None:
+def check_tags_still_valid(owner: str, name: str, tags: list[str]) -> None:
     """
-    Checks if a tag and all its referenced image manifests are still valid
+    Checks if a list of tags and all their referenced image manifests are still valid
     by fetching them directly from the registry API.
     """
     repository = f"{owner}/{name}"
-    qualified_name = f"ghcr.io/{repository}:{tag}"
-    a_tag_failed = False
+    any_tag_failed = False
 
-    try:
-        with RegistryClient(host="ghcr.io") as client:
-            logger.info(f"Checking {qualified_name}")
-            root_manifest = client.get_manifest(repository, tag)
+    with RegistryClient(host="ghcr.io") as client:
+        for tag in tags:
+            qualified_name = f"ghcr.io/{repository}:{tag}"
+            try:
+                logger.info(f"Checking {qualified_name}")
+                root_manifest = client.get_manifest(repository, tag)
 
-            # Check if the root manifest is an image index (multi-arch)
-            if is_multi_arch_media_type(root_manifest):
-                if TYPE_CHECKING:
-                    root_manifest: OCIImageIndex | DockerManifestList
-                logger.info(f"{qualified_name} is a multi-arch image index.")
-                for manifest_descriptor in root_manifest["manifests"]:
-                    digest = manifest_descriptor.get("digest")
-                    if not digest:
-                        continue
-                    platform = format_platform(manifest_descriptor.get("platform", {}))
-                    digest_name = f"ghcr.io/{repository}@{digest}"
-                    logger.info(f"Checking digest {digest} for platform {platform}")
+                # Check if the root manifest is an image index (multi-arch)
+                if is_multi_arch_media_type(root_manifest):
+                    logger.info(f"{qualified_name} is a multi-arch image index.")
 
-                    try:
-                        client.get_manifest(repository, digest)
-                        logger.debug(f"Successfully inspected {digest_name}")
-                    except httpx.HTTPError as e:
-                        a_tag_failed = True
-                        logger.error(f"Failed to inspect digest {digest_name}: {e}")
-            else:
-                # This is a single-platform image, and we've already fetched it.
-                logger.info(f"{qualified_name} is a single-platform image, check successful.")
+                    for manifest_descriptor in root_manifest.get("manifests", []):
+                        digest = manifest_descriptor.get("digest")
+                        if not digest:
+                            continue
+                        platform = format_platform(manifest_descriptor.get("platform", {}))
+                        digest_name = f"ghcr.io/{repository}@{digest}"
+                        logger.info(f"Checking digest {digest} for platform {platform}")
 
-    except httpx.HTTPError as e:
-        a_tag_failed = True
-        logger.error(f"Failed to inspect initial tag {qualified_name}: {e}")
+                        try:
+                            client.get_manifest(repository, digest)
+                            logger.debug(f"Successfully inspected {digest_name}")
+                        except httpx.HTTPError as e:
+                            any_tag_failed = True
+                            logger.error(f"Failed to inspect digest {digest_name}: {e}")
+                else:
+                    # This is a single-platform image, and we've already fetched it.
+                    logger.info(f"{qualified_name} is a single-platform image, check successful.")
 
-    if a_tag_failed:
-        msg = f"Tag {qualified_name} or one of its digests failed to inspect and may no longer be valid."
-        gha_utils.error(
-            message=msg,
-            title=f"Verification failure: {qualified_name}",
-        )
+            except httpx.HTTPError as e:
+                any_tag_failed = True
+                logger.error(f"Failed to inspect initial tag {qualified_name}: {e}")
+                gha_utils.error(
+                    message=f"Tag {qualified_name} failed to inspect and may no longer be valid.",
+                    title=f"Verification failure: {qualified_name}",
+                )
+
+    if any_tag_failed:
+        msg = "One or more tags or their digests failed to inspect and may no longer be valid."
         raise Exception(msg)
     else:
-        logger.info(f"Successfully verified tag {qualified_name} and all its digests.")
+        logger.info(f"Successfully verified all tags for {repository} and all their digests.")

@@ -12,6 +12,8 @@ from http import HTTPStatus
 
 import github_action_utils as gha_utils
 import httpx
+from httpx_retries import Retry
+from httpx_retries import RetryTransport
 
 from utils.errors import RateLimitError
 
@@ -30,10 +32,23 @@ class GithubApiBase:
         self._token = token
         # Create the client for connection pooling, add headers for type
         # version and authorization
+        transport = RetryTransport(
+            retry=Retry(
+                backoff_factor=0.5,
+                status_forcelist=[
+                    httpx.codes.TOO_MANY_REQUESTS,  # 429
+                    httpx.codes.INTERNAL_SERVER_ERROR,  # 500
+                    httpx.codes.BAD_GATEWAY,  # 502
+                    httpx.codes.SERVICE_UNAVAILABLE,  # 503
+                    httpx.codes.GATEWAY_TIMEOUT,  # 504
+                ],
+            ),
+        )
         self._client: httpx.Client = httpx.Client(
             http2=True,
             base_url=self.API_BASE_URL,
             timeout=30.0,
+            transport=transport,
             headers={
                 "Accept": "application/vnd.github.v3+json",
                 "Authorization": f"token {self._token}",
@@ -56,7 +71,6 @@ class GithubApiBase:
 
         # Close the session as well
         self._client.close()
-        self._client = None
 
     def _read_all_pages(self, endpoint: str, query_params: dict | None = None):
         """
