@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 
 import logging
+from typing import TYPE_CHECKING
 
 import github_action_utils as gha_utils
+import httpx
 
 from github.packages import ContainerPackage
 from github.packages import GithubContainerRegistryOrgApi
 from github.packages import GithubContainerRegistryUserApi
 from github.ratelimit import GithubRateLimitApi
-from regtools.images import ImageIndexInfo
+from regtools.images import RegistryClient
 from regtools.images import check_tag_still_valid
+from regtools.images import format_platform
+from regtools.images import is_multi_arch_media_type
+from regtools.models import DockerManifestList
+from regtools.models import OCIImageIndex
 from utils import coerce_to_bool
 from utils import common_args
 from utils import get_log_level
@@ -77,7 +83,7 @@ def _main() -> None:
     # mapping name (which is a digest) to the version
     # These just make it easier to do some lookups later
     tag_to_pkgs: dict[str, ContainerPackage] = {}
-    untagged_versions = {}
+    untagged_versions: dict[str, ContainerPackage] = {}
     for pkg in active_versions:
         if pkg.untagged:
             untagged_versions[pkg.name] = pkg
@@ -92,34 +98,36 @@ def _main() -> None:
     # We're keeping every tag
     tags_to_keep = list(set(tag_to_pkgs.keys()))
     logger.info(f"Keeping {len(tags_to_keep)} for {config.package_name}")
-    for tag in tags_to_keep:
-        logger.debug(
-            f"Keeping ghcr.io/{config.owner_or_org}/{config.package_name}:{tag}",
-        )
+    logger.info("Checking tagged multi-arch images to prevent digest deletion...")
+    with RegistryClient(host="ghcr.io") as client:
+        for tag in tags_to_keep:
+            repository = f"{config.owner_or_org}/{config.package_name}"
+            qualified_name = f"ghcr.io/{repository}:{tag}"
+            logger.debug(f"Checking tag for referenced digests: {qualified_name}")
 
-        index_info = ImageIndexInfo(
-            f"ghcr.io/{config.owner_or_org}/{config.package_name}",
-            tag,
-        )
+            try:
+                manifest = client.get_manifest(repository, tag)
+            except httpx.HTTPStatusError as e:
+                # It's possible a tag in the keep list doesn't exist; log and skip.
+                logger.warning(f"Could not fetch manifest for tag '{tag}', skipping. Reason: {e}")
+                continue
 
-        # These are not pointers.  If untagged, it's actually untagged
-        if not index_info.is_multi_arch:
-            logger.info(
-                f"{index_info.qualified_name} is not multi-arch, nothing to do",
-            )
-            continue
-
-        for manifest in index_info.image_pointers:
-            if manifest.digest in untagged_versions:
-                logger.info(
-                    f"Skipping deletion of {manifest.digest},"
-                    f" referred to by {index_info.qualified_name}"
-                    f" for {manifest.platform}",
-                )
-                del untagged_versions[manifest.digest]
-
-            # TODO Make it clear for digests which are multi-tagged (latest, x.x.y)
-            # they are not being deleted too
+            # If it's a multi-arch index, check its digests
+            if is_multi_arch_media_type(manifest):
+                if TYPE_CHECKING:
+                    manifest: OCIImageIndex | DockerManifestList
+                for descriptor in manifest["manifests"]:
+                    digest = descriptor.get("digest")
+                    if digest and digest in untagged_versions:
+                        platform = format_platform(descriptor.get("platform", {}))
+                        logger.info(
+                            f"Keeping digest {digest} for platform {platform} because "
+                            f"it is part of tagged image {qualified_name}.",
+                        )
+                        # This digest is in use, remove it from deletion candidates
+                        del untagged_versions[digest]
+            else:
+                logger.debug(f"{qualified_name} is not multi-arch, nothing to do.")
 
     if not untagged_versions:
         logger.info("Nothing to do")
