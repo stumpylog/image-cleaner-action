@@ -27,7 +27,7 @@ class TestGithubContainerRegistryOrgApi:
         )
         httpx_mock.add_response(method="DELETE", url=pkg_data.url, status_code=204)
 
-        await org_packages_api.delete(pkg_data)  # Should succeed silently
+        await org_packages_api.delete_package(pkg_data)  # Should succeed silently
 
     @pytest.mark.asyncio
     async def test_restore_package_version(
@@ -70,7 +70,7 @@ class TestGithubContainerRegistryUserApi:
         )
         httpx_mock.add_response(method="DELETE", url=pkg_data.url, status_code=204)
 
-        await user_packages_api.delete(pkg_data)
+        await user_packages_api.delete_package(pkg_data)
 
     @pytest.mark.asyncio
     async def test_restore_package_version(

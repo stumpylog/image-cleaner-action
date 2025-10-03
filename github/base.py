@@ -8,21 +8,24 @@ is cleaning up container images which are no longer referred to.
 """
 
 import asyncio
+import builtins
 import logging
 import re
+import time
 from http import HTTPStatus
+from typing import TypeVar
 
 import github_action_utils as gha_utils
 import httpx
 from httpx_retries import Retry
 from httpx_retries import RetryTransport
 
-from utils.errors import RateLimitError
-
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
 
-class GithubApiBase:
+
+class GithubApiBase[T]:
     """
     A base class for interacting with the GitHub API.  It
     will handle the session and setting authorization headers.
@@ -30,19 +33,20 @@ class GithubApiBase:
 
     API_BASE_URL = "https://api.github.com"
 
-    def __init__(self, token: str) -> None:
+    def __init__(self, token: str, rate_limit_threshold: int = 100) -> None:
         self._token = token
+        self._rate_limit_threshold = rate_limit_threshold
         # Create the client for connection pooling, add headers for type
         # version and authorization
         transport = RetryTransport(
             retry=Retry(
                 backoff_factor=0.5,
                 status_forcelist=[
-                    httpx.codes.TOO_MANY_REQUESTS,  # 429
-                    httpx.codes.INTERNAL_SERVER_ERROR,  # 500
-                    httpx.codes.BAD_GATEWAY,  # 502
-                    httpx.codes.SERVICE_UNAVAILABLE,  # 503
-                    httpx.codes.GATEWAY_TIMEOUT,  # 504
+                    HTTPStatus.TOO_MANY_REQUESTS,
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    HTTPStatus.BAD_GATEWAY,
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    HTTPStatus.GATEWAY_TIMEOUT,
                 ],
             ),
         )
@@ -74,12 +78,35 @@ class GithubApiBase:
         # Close the session as well
         await self._client.aclose()
 
+    async def _check_rate_limit(self, response: httpx.Response) -> None:
+        """
+        Check rate limit headers and sleep if necessary.
+        """
+        if "X-RateLimit-Remaining" not in response.headers:
+            return
+
+        remaining = int(response.headers["X-RateLimit-Remaining"])
+
+        if remaining < self._rate_limit_threshold:
+            reset_time = int(response.headers.get("X-RateLimit-Reset", 0))
+            if reset_time:
+                current_time = int(time.time())
+                sleep_duration = max(0, reset_time - current_time + 5)  # Add 5 second buffer
+
+                if sleep_duration > 0:
+                    logger.warning(
+                        f"Rate limit threshold reached ({remaining} remaining). "
+                        f"Sleeping for {sleep_duration} seconds until reset.",
+                    )
+                    await asyncio.sleep(sleep_duration)
+
     def _parse_link_header(self, link_header: str) -> dict[str, str]:
         """
         Parse the Link header to extract URLs for pagination.
         Returns a dict like {'next': 'url', 'last': 'url', 'first': 'url', 'prev': 'url'}
+        https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api?apiVersion=2022-11-28
         """
-        links = {}
+        links: dict[str, str] = {}
         if not link_header:
             return links
 
@@ -99,27 +126,53 @@ class GithubApiBase:
         match = re.search(r"[?&]page=(\d+)", url)
         return int(match.group(1)) if match else None
 
-    async def _read_all_pages(self, endpoint: str, query_params: dict | None = None):
+    async def get(self, endpoint: str, query_params: dict | None = None) -> T:
         """
-        Helper function to read all pages of an endpoint, utilizing the
-        next.url until exhausted.  Assumes the endpoint returns a list.
+        Get a single resource from the API.
+        """
+        if query_params is None:
+            query_params = {}
+
+        resp = await self._client.get(endpoint, params=query_params)
+        await self._check_rate_limit(resp)
+
+        if resp.status_code != HTTPStatus.OK:
+            msg = f"Request to {endpoint} returned HTTP {resp.status_code}"
+            gha_utils.error(message=msg, title=f"HTTP Error {resp.status_code}")
+            logger.error(msg)
+            resp.raise_for_status()
+
+        return resp.json()
+
+    async def delete(self, endpoint: str) -> None:
+        """
+        Delete a resource via the API.
+        """
+        resp = await self._client.delete(endpoint)
+        await self._check_rate_limit(resp)
+
+        if resp.status_code not in (HTTPStatus.NO_CONTENT, HTTPStatus.OK):
+            msg = f"Delete request to {endpoint} returned HTTP {resp.status_code}"
+            gha_utils.error(message=msg, title=f"HTTP Error {resp.status_code}")
+            logger.error(msg)
+            resp.raise_for_status()
+
+    async def list(self, endpoint: str, query_params: dict | None = None) -> list[T]:
+        """
+        List all resources from an endpoint, handling pagination automatically.
+        Returns a list of all items across all pages.
         """
         if query_params is None:
             query_params = {}
 
         # Make the first request to get pagination info
         resp = await self._client.get(endpoint, params=query_params)
+        await self._check_rate_limit(resp)
 
         if resp.status_code != HTTPStatus.OK:
-            msg = f"Request to {endpoint} return HTTP {resp.status_code}"
+            msg = f"Request to {endpoint} returned HTTP {resp.status_code}"
             gha_utils.error(message=msg, title=f"HTTP Error {resp.status_code}")
             logger.error(msg)
-
-            # If forbidden, check if it is rate limiting
-            if resp.status_code == HTTPStatus.FORBIDDEN and "X-RateLimit-Remaining" in resp.headers:
-                remaining = int(resp.headers["X-RateLimit-Remaining"])
-                if remaining <= 0:
-                    raise RateLimitError
             resp.raise_for_status()
 
         # Store first page data
@@ -134,7 +187,7 @@ class GithubApiBase:
         links = self._parse_link_header(link_header)
 
         # Extract total number of pages
-        last_page = self._extract_page_number(links["last"])
+        last_page = self._extract_page_number(links.get("last", ""))
         if not last_page or last_page == 1:
             return all_data[1]
 
@@ -166,18 +219,14 @@ class GithubApiBase:
 
         return combined_data
 
-    async def _fetch_page(self, endpoint: str, params: dict, page_num: int) -> tuple[int, list]:
+    async def _fetch_page(self, endpoint: str, params: dict, page_num: int) -> tuple[int, builtins.list[T]]:
         """Fetch a single page and return page number with data"""
         resp = await self._client.get(endpoint, params=params)
+        await self._check_rate_limit(resp)
 
         if resp.status_code != HTTPStatus.OK:
             msg = f"Request to {endpoint} page {page_num} returned HTTP {resp.status_code}"
             logger.error(msg)
-
-            if resp.status_code == HTTPStatus.FORBIDDEN and "X-RateLimit-Remaining" in resp.headers:
-                remaining = int(resp.headers["X-RateLimit-Remaining"])
-                if remaining <= 0:
-                    raise RateLimitError
             resp.raise_for_status()
 
         return (page_num, resp.json())

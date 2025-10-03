@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - HTTP calls include automatic retry with exponential backoff and jitter
   - HTTP calls handle authenticating with a temporary token to the registry, including expiration
 - `uv` caching should now be enabled
+- Much improved rate limit handling
+  - All requests now check the `X-RateLimit-Remaining` header and if approaching the limit, utilize `X-RateLimit-Reset` to sleep until it resets
 
 ### Fixed
 

@@ -20,11 +20,8 @@ class RateLimits(GithubEndpointResponse):
         return f"{self.remaining}/{self.limit} (reset @ {self.reset_time})"
 
 
-class GithubRateLimitApi(GithubApiBase):
+class GithubRateLimitApi(GithubApiBase[RateLimitOverview]):
     ENDPOINT = "https://api.github.com/rate_limit"
 
     async def limits(self) -> RateLimits:
-        resp = await self._client.get(self.ENDPOINT)
-        resp.raise_for_status()
-
-        return RateLimits(resp.json())
+        return RateLimits(await self.get(self.ENDPOINT))

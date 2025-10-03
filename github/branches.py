@@ -27,7 +27,7 @@ class GithubBranch(GithubEndpointResponse):
         return re.match(pattern, self.name) is not None
 
 
-class GithubBranchApi(GithubApiBase):
+class GithubBranchApi(GithubApiBase[ShortBranch]):
     """
     Wrapper around branch API.
 
@@ -46,7 +46,7 @@ class GithubBranchApi(GithubApiBase):
         owner or organization.
         """
         # The environment GITHUB_REPOSITORY already contains the owner in the correct location
-        internal_data: list[ShortBranch] = await self._read_all_pages(
+        internal_data: list[ShortBranch] = await self.list(
             self.API_ENDPOINT.format(OWNER=owner, REPO=repo),
         )
         return [GithubBranch(branch) for branch in internal_data]

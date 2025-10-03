@@ -10,7 +10,7 @@ class TestGithubPullRequestApi:
         pr_json = {"number": 42, "state": "closed"}
         httpx_mock.add_response(json=pr_json)
 
-        pr = await pr_api.get("owner", "repo", 42)
+        pr = await pr_api.get_pr("owner", "repo", 42)
         assert isinstance(pr, PullRequest)
         assert pr._data["number"] == 42
         assert pr.closed

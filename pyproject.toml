@@ -94,6 +94,9 @@ exclude_lines = [
   "if SAVE_OUTPUTS:",
 ]
 
+[tool.mypy]
+python_version = "3.12"
+
 [tool.uv]
 package = false
 required-version = ">=0.8.0"
