@@ -66,7 +66,7 @@ async def _get_tags_to_delete_pull_request(
                     if x is not None:
                         pr_number = int(x)
                         break
-                if pr_number and (await api.get(args.owner_or_org, args.repo, pr_number)).closed:
+                if pr_number and (await api.get_pr(args.owner_or_org, args.repo, pr_number)).closed:
                     pkgs_with_closed_pr.append(pkg)
                 elif not pr_number:
                     logger.warning(f"Could not extract PR number from tag {pkg.tags[0]}")
@@ -222,7 +222,7 @@ async def _main() -> None:
                 logger.info(
                     f"Deleting id {to_delete_version.id} named {to_delete_version.name}",
                 )
-                await api.delete(
+                await api.delete_package(
                     to_delete_version,
                 )
             else:

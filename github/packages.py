@@ -9,8 +9,7 @@ import github_action_utils as gha_utils
 
 from github.base import GithubApiBase
 from github.base import GithubEndpointResponse
-from github.models.packages.organization import Package as OrgPackage
-from github.models.packages.user import Package as UserPackage
+from github.models.package import Package
 from utils.errors import RateLimitError
 
 logger = logging.getLogger(__name__)
@@ -23,22 +22,22 @@ class ContainerPackage(GithubEndpointResponse):
     endpoints
     """
 
-    def __init__(self, data: UserPackage | OrgPackage):
+    def __init__(self, data: Package):
         super().__init__(data)  # type: ignore[arg-type]
         # This is a numerical ID, required for interactions with this
         # specific package, including deletion of it or restoration
-        self.id: int = self._data["id"]
+        self.id: int = data["id"]
 
         # A string name.  This might be an actual name, or it could be a
         # digest string like "sha256:"
-        self.name: str = self._data["name"]
+        self.name: str = data["name"]
 
         # URL to the package, including its ID, can be used for deletion
         # or restoration without needing to build up a URL ourselves
-        self.url: str = self._data["url"]
+        self.url: str = data["url"]
 
         # The list of tags applied to this image. Maybe an empty list
-        self.tags: list[str] = self._data["metadata"]["container"]["tags"]
+        self.tags: list[str] = data.get("metadata", {}).get("container", {}).get("tags", [])
 
     @functools.cached_property
     def untagged(self) -> bool:
@@ -160,7 +159,7 @@ class _GithubContainerRegistryApiBase[T](GithubApiBase[T]):
                 logger.warning(msg)
 
 
-class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase[OrgPackage]):
+class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase[Package]):
     """
     Class wrapper to deal with the GitHub packages API.  This class only deals with
     container type packages.
@@ -176,7 +175,7 @@ class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase[OrgPackage])
     )
 
 
-class GithubContainerRegistryUserApi(_GithubContainerRegistryApiBase[UserPackage]):
+class GithubContainerRegistryUserApi(_GithubContainerRegistryApiBase[Package]):
     """
     Class wrapper to deal with the GitHub packages API.  This class only deals with
     container type packages.

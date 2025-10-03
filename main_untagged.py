@@ -94,7 +94,7 @@ async def _main() -> None:
     #
     # We're keeping every tag
     tags_to_keep = list(set(tag_to_pkgs.keys()))
-    logger.info(f"Keeping {len(tags_to_keep)} for {config.package_name}")
+    logger.info(f"Found {len(tags_to_keep)} tagged images for {config.package_name} which will be kept")
     logger.info("Checking tagged multi-arch images to prevent digest deletion...")
     async with RegistryClient(host="ghcr.io") as client:
         for tag in tags_to_keep:
@@ -147,7 +147,7 @@ async def _main() -> None:
                 logger.info(
                     f"Deleting id {to_delete_version.id} named {to_delete_version.name}",
                 )
-                await api.delete(
+                await api.delete_package(
                     to_delete_version,
                 )
             else:
