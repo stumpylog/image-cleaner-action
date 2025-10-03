@@ -257,7 +257,7 @@ async def _check_single_tag(
                 platform = format_platform(manifest_descriptor.get("platform", {}))
                 # schedule digest checks; these calls will themselves use digest_semaphore
                 digest_tasks.append(
-                    _check_digest(client, repository, digest, platform, tag, digest_semaphore),
+                    _check_digest_is_valid(client, repository, digest, platform, tag, digest_semaphore),
                 )
         else:
             # This is a single-platform image, and we've already fetched it.
@@ -281,7 +281,7 @@ async def _check_single_tag(
         return False
 
 
-async def _check_digest(
+async def _check_digest_is_valid(
     client: RegistryClient,
     repository: str,
     digest: str,
@@ -300,10 +300,10 @@ async def _check_digest(
         try:
             await client.get_manifest(repository, digest)
             logger.debug(f"Successfully inspected {digest_name}")
-            return False
+            return True
         except httpx.HTTPError as e:
             logger.error(f"Failed to inspect digest {digest_name}: {e}")
-            return True
+            return False
 
 
 async def check_tags_still_valid(
