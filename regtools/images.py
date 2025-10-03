@@ -26,6 +26,14 @@ OCI_INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
 DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.list.v2+json"
 OCI_MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
 DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
+BUILDX_CACHE_MEDIA_TYPE = "application/vnd.buildkit.cacheconfig.v0"
+
+MANIFEST_MEDIA_TYPES = {
+    OCI_INDEX_MEDIA_TYPE,
+    DOCKER_MANIFEST_LIST_MEDIA_TYPE,
+    OCI_MANIFEST_MEDIA_TYPE,
+    DOCKER_MANIFEST_MEDIA_TYPE,
+}
 
 ACCEPT_HEADER = (
     f"{OCI_INDEX_MEDIA_TYPE}, "
@@ -227,7 +235,7 @@ async def _check_single_tag(
     Check a single tag:
       - limit concurrent *tag manifest* fetches with `tag_semaphore`
       - limit concurrent *digest* checks with `digest_semaphore` (used when scheduling _check_digest)
-    Returns (tag, is_valid_bool).
+    Returns True if the tag and any digests are valid, False otherwise.
     """
     qualified_name = f"{repository}:{tag}"
     try:
@@ -243,7 +251,8 @@ async def _check_single_tag(
             manifests = root_manifest.get("manifests", []) or []
             for manifest_descriptor in manifests:
                 digest = manifest_descriptor.get("digest")
-                if not digest:
+                media_type = manifest_descriptor.get("mediaType", "")
+                if not digest or media_type not in MANIFEST_MEDIA_TYPES:
                     continue
                 platform = format_platform(manifest_descriptor.get("platform", {}))
                 # schedule digest checks; these calls will themselves use digest_semaphore
@@ -260,11 +269,7 @@ async def _check_single_tag(
             # Any failure/False => tag considered invalid
             for r in results:
                 if isinstance(r, Exception):
-                    logger.warning(
-                        "Digest check for %s returned exception: %s",
-                        qualified_name,
-                        r,
-                    )
+                    logger.warning(f"Digest check for {qualified_name} returned exception: {r}")
                     return False
                 if r is not True:
                     # r is falsy (False or None) -> treat as invalid
@@ -329,7 +334,7 @@ async def check_tags_still_valid(
         results = await asyncio.gather(*tag_tasks, return_exceptions=True)
 
         # Check if any failures occurred
-        any_tag_failed = any(isinstance(r, Exception) or r for r in results)
+        any_tag_failed = not all(r is True for r in results)
 
     if any_tag_failed:
         msg = "One or more tags or their digests failed to inspect and may no longer be valid."

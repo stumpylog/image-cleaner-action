@@ -203,7 +203,7 @@ async def _main() -> None:
 
     if not len(tags_to_delete):
         logger.info("No images to remove")
-        return
+        # return
     logger.info(f"Will remove {len(set(tags_to_delete))} tagged packages")
     logger.info(f"Will keep {len(tags_to_keep)} packages")
 
@@ -221,7 +221,7 @@ async def _main() -> None:
 
             if config.delete:
                 logger.info(
-                    f"Deleting id {to_delete_version.id} named {to_delete_version.name}",
+                    f"Deleting id {to_delete_version.id} named {to_delete_version.name} aka {to_delete_name}",
                 )
                 await api.delete_package(
                     to_delete_version,
@@ -234,7 +234,7 @@ async def _main() -> None:
     #
     # Step 5 - Be really sure the remaining tags look a-ok
     #
-    if config.delete:
+    if True:
         logger.info("Beginning confirmation step")
         await check_tags_still_valid(config.owner_or_org, config.package_name, tags_to_keep)
     else:
