@@ -210,6 +210,7 @@ async def _main() -> None:
     #
     # Step 4 - Delete the stale packages
     #
+    # TODO: This is a candidate for concurrency with limits
     async with container_reg_class(
         config.token,
         config.owner_or_org,

@@ -96,6 +96,7 @@ async def _main() -> None:
     tags_to_keep = list(set(tag_to_pkgs.keys()))
     logger.info(f"Found {len(tags_to_keep)} tagged images for {config.package_name} which will be kept")
     logger.info("Checking tagged multi-arch images to prevent digest deletion...")
+    # TODO: This is a candidate for concurrency using async and probably gather
     async with RegistryClient(host="ghcr.io") as client:
         for tag in tags_to_keep:
             repository = f"{config.owner_or_org}/{config.package_name}"
@@ -158,7 +159,7 @@ async def _main() -> None:
     #
     # Step 4 - Be really sure the remaining tags look a-ok
     #
-    if True:
+    if config.delete:
         logger.info("Beginning confirmation step")
         await check_tags_still_valid(config.owner_or_org, config.package_name, tags_to_keep)
     else:
