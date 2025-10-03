@@ -158,7 +158,7 @@ async def _main() -> None:
     #
     # Step 4 - Be really sure the remaining tags look a-ok
     #
-    if config.delete:
+    if True:
         logger.info("Beginning confirmation step")
         await check_tags_still_valid(config.owner_or_org, config.package_name, tags_to_keep)
     else:

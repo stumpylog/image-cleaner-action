@@ -22,10 +22,11 @@ from httpx_retries import RetryTransport
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar("T")
+BaseT = TypeVar("BaseT")
+RespT = TypeVar("RespT")
 
 
-class GithubApiBase[T]:
+class GithubApiBase[BaseT]:
     """
     A base class for interacting with the GitHub API.  It
     will handle the session and setting authorization headers.
@@ -38,23 +39,15 @@ class GithubApiBase[T]:
         self._rate_limit_threshold = rate_limit_threshold
         # Create the client for connection pooling, add headers for type
         # version and authorization
-        transport = RetryTransport(
-            retry=Retry(
-                backoff_factor=0.5,
-                status_forcelist=[
-                    HTTPStatus.TOO_MANY_REQUESTS,
-                    HTTPStatus.INTERNAL_SERVER_ERROR,
-                    HTTPStatus.BAD_GATEWAY,
-                    HTTPStatus.SERVICE_UNAVAILABLE,
-                    HTTPStatus.GATEWAY_TIMEOUT,
-                ],
-            ),
-        )
         self._client: httpx.AsyncClient = httpx.AsyncClient(
             http2=True,
             base_url=self.API_BASE_URL,
-            timeout=30.0,
-            transport=transport,
+            timeout=httpx.Timeout(timeout=30.0, pool=35.0),
+            transport=RetryTransport(
+                retry=Retry(
+                    backoff_factor=0.5,
+                ),
+            ),
             headers={
                 "Accept": "application/vnd.github.v3+json",
                 "Authorization": f"token {self._token}",
@@ -126,7 +119,7 @@ class GithubApiBase[T]:
         match = re.search(r"[?&]page=(\d+)", url)
         return int(match.group(1)) if match else None
 
-    async def get(self, endpoint: str, query_params: dict | None = None) -> T:
+    async def get(self, endpoint: str, query_params: dict | None = None) -> BaseT:
         """
         Get a single resource from the API.
         """
@@ -157,7 +150,7 @@ class GithubApiBase[T]:
             logger.error(msg)
             resp.raise_for_status()
 
-    async def list(self, endpoint: str, query_params: dict | None = None) -> list[T]:
+    async def list(self, endpoint: str, query_params: dict | None = None) -> list[BaseT]:
         """
         List all resources from an endpoint, handling pagination automatically.
         Returns a list of all items across all pages.
@@ -219,7 +212,12 @@ class GithubApiBase[T]:
 
         return combined_data
 
-    async def _fetch_page(self, endpoint: str, params: dict, page_num: int) -> tuple[int, builtins.list[T]]:
+    async def _fetch_page(
+        self,
+        endpoint: str,
+        params: dict,
+        page_num: int,
+    ) -> tuple[int, builtins.list[BaseT]]:
         """Fetch a single page and return page number with data"""
         resp = await self._client.get(endpoint, params=params)
         await self._check_rate_limit(resp)
@@ -232,11 +230,11 @@ class GithubApiBase[T]:
         return (page_num, resp.json())
 
 
-class GithubEndpointResponse:
+class GithubEndpointResponse[RespT]:
     """
     For all endpoint JSON responses, store the full
     response data, for ease of extending later, if need be.
     """
 
-    def __init__(self, data: dict) -> None:
+    def __init__(self, data: RespT) -> None:
         self._data = data

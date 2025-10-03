@@ -5,7 +5,7 @@ from github.base import GithubEndpointResponse
 from github.models.ratelimit import RateLimitOverview
 
 
-class RateLimits(GithubEndpointResponse):
+class RateLimits(GithubEndpointResponse[RateLimitOverview]):
     def __init__(self, data: RateLimitOverview) -> None:
         super().__init__(data)  # type: ignore[arg-type]
         self.limit = self._data["rate"]["limit"]

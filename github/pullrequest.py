@@ -5,7 +5,7 @@ from github.base import GithubEndpointResponse
 from github.models.pullrequest import SimplePullRequest
 
 
-class PullRequest(GithubEndpointResponse):
+class PullRequest(GithubEndpointResponse[SimplePullRequest]):
     def __init__(self, data: SimplePullRequest) -> None:
         super().__init__(data)  # type: ignore[arg-type]
         self.state = self._data["state"]

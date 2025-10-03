@@ -9,7 +9,7 @@ from github.models.branch import ShortBranch
 logger = logging.getLogger(__name__)
 
 
-class GithubBranch(GithubEndpointResponse):
+class GithubBranch(GithubEndpointResponse[ShortBranch]):
     """
     Simple wrapper for a repository branch, only extracts name information
     for now.

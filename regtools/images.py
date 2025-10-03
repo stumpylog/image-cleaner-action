@@ -160,21 +160,16 @@ class RegistryClient:
         self.host = host
         self.base_url = f"https://{self.host}"
         # Use a transport with retries for network resilience
-        transport = RetryTransport(
-            retry=Retry(
-                backoff_factor=0.5,
-                status_forcelist=[
-                    httpx.codes.TOO_MANY_REQUESTS,  # 429
-                    httpx.codes.INTERNAL_SERVER_ERROR,  # 500
-                    httpx.codes.BAD_GATEWAY,  # 502
-                    httpx.codes.SERVICE_UNAVAILABLE,  # 503
-                    httpx.codes.GATEWAY_TIMEOUT,  # 504
-                ],
-            ),
-        )
+        # Increase the pool timeout as well
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
-            transport=transport,
+            transport=RetryTransport(
+                retry=Retry(
+                    total=5,
+                    backoff_factor=0.5,
+                ),
+            ),
+            timeout=httpx.Timeout(timeout=15.0, pool=20.0),
             follow_redirects=True,
         )
         self._client.auth = BearerAuth(self._client)
@@ -222,52 +217,63 @@ def format_platform(platform_data: Mapping[str, Any]) -> str:
 
 
 async def _check_single_tag(
-    client: RegistryClient,
+    client,
     repository: str,
     tag: str,
-    semaphore: asyncio.Semaphore,
+    tag_semaphore: asyncio.Semaphore,
+    digest_semaphore: asyncio.Semaphore,
 ) -> bool:
     """
-    Checks a single tag and all its referenced digests.
-    Returns True if any check failed, False if all succeeded.
+    Check a single tag:
+      - limit concurrent *tag manifest* fetches with `tag_semaphore`
+      - limit concurrent *digest* checks with `digest_semaphore` (used when scheduling _check_digest)
+    Returns (tag, is_valid_bool).
     """
-    qualified_name = f"ghcr.io/{repository}:{tag}"
-    tag_failed = False
-
+    qualified_name = f"{repository}:{tag}"
     try:
         logger.info(f"Checking {qualified_name}")
-        root_manifest = await client.get_manifest(repository, tag)
+        # Limit concurrent manifest requests
+        async with tag_semaphore:
+            root_manifest = await client.get_manifest(repository, tag)
 
-        # Check if the root manifest is an image index (multi-arch)
+        # If the manifest is an image index / multi-arch, gather manifests from descriptors.
+        # Otherwise treat root_manifest itself as the manifest descriptor list of one.
+        digest_tasks = []
         if is_multi_arch_media_type(root_manifest):
-            logger.info(f"{qualified_name} is a multi-arch image index.")
-
-            # Collect all digest check tasks
-            digest_tasks = []
-            for manifest_descriptor in root_manifest.get("manifests", []):
+            manifests = root_manifest.get("manifests", []) or []
+            for manifest_descriptor in manifests:
                 digest = manifest_descriptor.get("digest")
                 if not digest:
                     continue
                 platform = format_platform(manifest_descriptor.get("platform", {}))
-                digest_tasks.append(_check_digest(client, repository, digest, platform, semaphore))
-
-            # Check all digests concurrently with semaphore limit
-            if digest_tasks:
-                results = await asyncio.gather(*digest_tasks, return_exceptions=True)
-                tag_failed = any(isinstance(r, Exception) or r for r in results)
+                # schedule digest checks; these calls will themselves use digest_semaphore
+                digest_tasks.append(
+                    _check_digest(client, repository, digest, platform, tag, digest_semaphore),
+                )
         else:
             # This is a single-platform image, and we've already fetched it.
             logger.info(f"{qualified_name} is a single-platform image, check successful.")
 
-    except httpx.HTTPError as e:
-        tag_failed = True
-        logger.error(f"Failed to inspect initial tag {qualified_name}: {e}")
-        gha_utils.error(
-            message=f"Tag {qualified_name} failed to inspect and may no longer be valid.",
-            title=f"Verification failure: {qualified_name}",
-        )
+        # run digest checks (bounded by digest_semaphore inside _check_digest)
+        if digest_tasks:
+            results = await asyncio.gather(*digest_tasks, return_exceptions=True)
+            # Any failure/False => tag considered invalid
+            for r in results:
+                if isinstance(r, Exception):
+                    logger.warning(
+                        "Digest check for %s returned exception: %s",
+                        qualified_name,
+                        r,
+                    )
+                    return False
+                if r is not True:
+                    # r is falsy (False or None) -> treat as invalid
+                    return False
+        return True
 
-    return tag_failed
+    except Exception as exc:
+        logger.exception("Failed checking %s: %s", qualified_name, exc)
+        return False
 
 
 async def _check_digest(
@@ -275,6 +281,7 @@ async def _check_digest(
     repository: str,
     digest: str,
     platform: str,
+    tag: str,
     semaphore: asyncio.Semaphore,
 ) -> bool:
     """
@@ -283,7 +290,7 @@ async def _check_digest(
     """
     async with semaphore:
         digest_name = f"ghcr.io/{repository}@{digest}"
-        logger.info(f"Checking digest {digest} for platform {platform}")
+        logger.info(f"Checking digest {digest} for platform {platform} (from {tag})")
 
         try:
             await client.get_manifest(repository, digest)
@@ -294,21 +301,31 @@ async def _check_digest(
             return True
 
 
-async def check_tags_still_valid(owner: str, name: str, tags: list[str]) -> None:
+async def check_tags_still_valid(
+    owner: str,
+    name: str,
+    tags: list[str],
+    *,
+    tag_concurrency: int = 10,
+    digest_concurrency: int = 5,
+) -> None:
     """
     Checks if a list of tags and all their referenced image manifests are still valid
     by fetching them directly from the registry API.
 
-    Tags are checked with concurrency limited to 10 requests at a time.
+    Tags are checked with concurrency limited to 10 requests at a time, with digests limited to 5 at a time
     """
     repository = f"{owner}/{name}"
 
     async with RegistryClient(host="ghcr.io") as client:
-        # Create a semaphore to limit concurrent requests
-        semaphore = asyncio.Semaphore(10)
+        # Semaphores to bound concurrency
+        tag_semaphore = asyncio.BoundedSemaphore(tag_concurrency)
+        digest_semaphore = asyncio.BoundedSemaphore(digest_concurrency)
 
         # Check all tags with limited concurrency
-        tag_tasks = [_check_single_tag(client, repository, tag, semaphore) for tag in tags]
+        tag_tasks = [
+            _check_single_tag(client, repository, tag, tag_semaphore, digest_semaphore) for tag in tags
+        ]
         results = await asyncio.gather(*tag_tasks, return_exceptions=True)
 
         # Check if any failures occurred
@@ -316,6 +333,8 @@ async def check_tags_still_valid(owner: str, name: str, tags: list[str]) -> None
 
     if any_tag_failed:
         msg = "One or more tags or their digests failed to inspect and may no longer be valid."
+        logger.error(msg)
+        gha_utils.error(msg, title="Possible registry problems")
         raise Exception(msg)
     else:
         logger.info(f"Successfully verified all tags for {repository} and all their digests.")

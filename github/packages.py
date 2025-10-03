@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-class ContainerPackage(GithubEndpointResponse):
+class ContainerPackage(GithubEndpointResponse[Package]):
     """
     Data class wrapping the JSON response from the package related
     endpoints
@@ -26,18 +26,19 @@ class ContainerPackage(GithubEndpointResponse):
         super().__init__(data)  # type: ignore[arg-type]
         # This is a numerical ID, required for interactions with this
         # specific package, including deletion of it or restoration
-        self.id: int = data["id"]
+        self.id: int = self._data["id"]
 
         # A string name.  This might be an actual name, or it could be a
         # digest string like "sha256:"
-        self.name: str = data["name"]
+        self.name: str = self._data["name"]
 
         # URL to the package, including its ID, can be used for deletion
         # or restoration without needing to build up a URL ourselves
-        self.url: str = data["url"]
+        self.url: str = self._data["url"]
 
         # The list of tags applied to this image. Maybe an empty list
-        self.tags: list[str] = data.get("metadata", {}).get("container", {}).get("tags", [])
+        # This is probably always present for the container type we care about, but handle if not
+        self.tags: list[str] = self._data.get("metadata", {}).get("container", {}).get("tags", [])
 
     @functools.cached_property
     def untagged(self) -> bool:
