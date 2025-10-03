@@ -12,6 +12,7 @@ classifiers = [
 dependencies = [
   "github-action-utils>=1.1",
   "httpx[brotli,http2]>=0.28",
+  "httpx-retries",
 ]
 
 [dependency-groups]
@@ -21,6 +22,7 @@ dev = [
   "pre-commit",
   "pre-commit-uv",
   "pytest",
+  "pytest-asyncio",
   "pytest-cov",
   "pytest-httpx",
   "pytest-mock",
@@ -60,6 +62,7 @@ lint.extend-select = [
   "UP",
   "W",
 ]
+lint.per-file-ignores."github/models/**" = [ "E501" ]
 # https://docs.astral.sh/ruff/settings/#lintisort
 lint.isort.force-single-line = true
 
@@ -90,6 +93,9 @@ exclude_lines = [
   "if TYPE_CHECKING:",
   "if SAVE_OUTPUTS:",
 ]
+
+[tool.mypy]
+python_version = "3.12"
 
 [tool.uv]
 package = false

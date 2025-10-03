@@ -60,3 +60,4 @@ dmypy.json
 
 # secrets
 token.txt
+.vscode/

@@ -2,11 +2,12 @@ import functools
 
 from github.base import GithubApiBase
 from github.base import GithubEndpointResponse
+from github.models.pullrequest import SimplePullRequest
 
 
-class PullRequest(GithubEndpointResponse):
-    def __init__(self, data: dict) -> None:
-        super().__init__(data)
+class PullRequest(GithubEndpointResponse[SimplePullRequest]):
+    def __init__(self, data: SimplePullRequest) -> None:
+        super().__init__(data)  # type: ignore[arg-type]
         self.state = self._data["state"]
 
     @functools.cached_property
@@ -18,30 +19,26 @@ class GithubPullRequestApi(GithubApiBase):
     GET_PR_API_ENDPOINT = "/repos/{OWNER}/{REPO}/pulls/{PULL_NUMBER}"
     LIST_PR_API_ENDPOINT = "/repos/{OWNER}/{REPO}/pulls"
 
-    def get(self, owner: str, repo: str, number: int) -> PullRequest:
+    async def get_pr(self, owner: str, repo: str, number: int) -> PullRequest:
         endpoint = self.GET_PR_API_ENDPOINT.format(
             OWNER=owner,
             REPO=repo,
             PULL_NUMBER=number,
         )
-        resp = self._client.get(endpoint)
-        resp.raise_for_status()
-        return PullRequest(resp.json())
+        return PullRequest(await self.get(endpoint))
 
-    def closed_pulls(self, owner: str, repo: str) -> list[PullRequest]:
+    async def closed_pulls(self, owner: str, repo: str) -> list[PullRequest]:
         endpoint = self.LIST_PR_API_ENDPOINT.format(OWNER=owner, REPO=repo)
         query_params = {"state": "closed", "per_page": 100}
         # resp is a list of dicts here
-        resp = self._read_all_pages(endpoint, query_params=query_params)
+        resp: list[SimplePullRequest] = await self.list(endpoint, query_params=query_params)
         # No raise_for_status() or .json() needed on the list itself
         return [PullRequest(x) for x in resp]
 
-    def open_pulls(self, owner: str, repo: str) -> list[PullRequest]:
+    async def open_pulls(self, owner: str, repo: str) -> list[PullRequest]:
         endpoint = self.LIST_PR_API_ENDPOINT.format(OWNER=owner, REPO=repo)
-        # The original code had 'state': 'closed' here, which is a bug for open_pulls.
-        # This should be 'open'.
         query_params = {"state": "open", "per_page": 100}
         # resp is a list of dicts here
-        resp = self._read_all_pages(endpoint, query_params=query_params)
+        resp: list[SimplePullRequest] = await self.list(endpoint, query_params=query_params)
         # No raise_for_status() or .json() needed on the list itself
         return [PullRequest(x) for x in resp]
