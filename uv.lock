@@ -326,14 +326,14 @@ http2 = [
 
 [[package]]
 name = "httpx-retries"
-version = "0.4.2"
+version = "0.4.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9e/32/37cd73ca29912cc572cec2a79b09cb719786d22e37bf02140bc750d34b36/httpx_retries-0.4.2.tar.gz", hash = "sha256:8c32b781cf18dc9d67fc380792bf465cde107831ec1c1c504a7df6c80f06536c", size = 12607, upload-time = "2025-09-02T20:41:20.564Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/30/45/e8dda952a110a157445247837a25e6977d44a8d1c734cf06909c7ca81830/httpx_retries-0.4.3.tar.gz", hash = "sha256:7c3c9c7b0b6d630a0f01423d7aca8e539bee963bfdf2f1acbe9826e8698b39fc", size = 12764, upload-time = "2025-10-08T13:57:11.432Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a4/73/0700c81ad08787e2648de8ae69c046bdfee865216187bdd43cb2ba35b36c/httpx_retries-0.4.2-py3-none-any.whl", hash = "sha256:0393e2ee1ab7a90aa748733cc8fe8ff722f21f282fc8f8780369089918cec994", size = 8224, upload-time = "2025-09-02T20:41:19.707Z" },
+    { url = "https://files.pythonhosted.org/packages/1a/9e/ee8f6b9f37b1e1f1faea5576a9ec0f865a787b44e6b2f6a70deee17d6fb2/httpx_retries-0.4.3-py3-none-any.whl", hash = "sha256:eb0ffd0dd713ece7652cf32780956c780139e5434974df6e8b17746ef0e4b650", size = 8278, upload-time = "2025-10-08T13:57:10.668Z" },
 ]
 
 [[package]]
