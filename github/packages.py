@@ -3,24 +3,27 @@ import logging
 import re
 import urllib.parse
 from http import HTTPStatus
+from typing import TypeVar
 
 import github_action_utils as gha_utils
 
 from github.base import GithubApiBase
 from github.base import GithubEndpointResponse
+from github.models.package import Package
 from utils.errors import RateLimitError
 
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
-class ContainerPackage(GithubEndpointResponse):
+class ContainerPackage(GithubEndpointResponse[Package]):
     """
     Data class wrapping the JSON response from the package related
     endpoints
     """
 
-    def __init__(self, data: dict):
-        super().__init__(data)
+    def __init__(self, data: Package):
+        super().__init__(data)  # type: ignore[arg-type]
         # This is a numerical ID, required for interactions with this
         # specific package, including deletion of it or restoration
         self.id: int = self._data["id"]
@@ -34,7 +37,8 @@ class ContainerPackage(GithubEndpointResponse):
         self.url: str = self._data["url"]
 
         # The list of tags applied to this image. Maybe an empty list
-        self.tags: list[str] = self._data["metadata"]["container"]["tags"]
+        # This is probably always present for the container type we care about, but handle if not
+        self.tags: list[str] = self._data.get("metadata", {}).get("container", {}).get("tags", [])
 
     @functools.cached_property
     def untagged(self) -> bool:
@@ -62,19 +66,20 @@ class ContainerPackage(GithubEndpointResponse):
         return f"Package {self.name}"
 
 
-class _GithubContainerRegistryApiBase(GithubApiBase):
-    PACKAGE_VERSIONS_ENDPOINT = ""
-    PACKAGE_VERSION_DELETE_ENDPOINT = ""
-    PACKAGE_VERSION_RESTORE_ENDPOINT = ""
+class _GithubContainerRegistryApiBase[T](GithubApiBase[T]):
+    PACKAGE_VERSIONS_ENDPOINT: str = ""
+    PACKAGE_VERSION_DELETE_ENDPOINT: str = ""
+    PACKAGE_VERSION_RESTORE_ENDPOINT: str = ""
 
     def __init__(self, token: str, owner_or_org: str, is_org: bool = False) -> None:
         super().__init__(token)
         self._owner_or_org = owner_or_org
         self.is_org = is_org
 
-    def versions(
+    async def versions(
         self,
         package_name: str,
+        *,
         active: bool | None = None,
     ) -> list[ContainerPackage]:
         """
@@ -103,43 +108,30 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
 
         pkgs = []
 
-        for data in self._read_all_pages(endpoint, query_params=query_params):
-            pkgs.append(ContainerPackage(data))
+        for data in await self.list(endpoint, query_params=query_params):
+            pkgs.append(ContainerPackage(data))  # type: ignore[arg-type]
 
         return pkgs
 
-    def active_versions(
+    async def active_versions(
         self,
         package_name: str,
     ) -> list[ContainerPackage]:
-        return self.versions(package_name, True)
+        return await self.versions(package_name, active=True)
 
-    def deleted_versions(
+    async def deleted_versions(
         self,
         package_name: str,
     ) -> list[ContainerPackage]:
-        return self.versions(package_name, False)
+        return await self.versions(package_name, active=False)
 
-    def delete(self, package_data: ContainerPackage):
+    async def delete_package(self, package_data: ContainerPackage):
         """
         Deletes the given package version from the GHCR
         """
-        resp = self._client.delete(package_data.url)
-        if resp.status_code != HTTPStatus.NO_CONTENT:
-            # If forbidden, check if it is rate limiting
-            if resp.status_code == HTTPStatus.FORBIDDEN and "X-RateLimit-Remaining" in resp.headers:
-                remaining = int(resp.headers["X-RateLimit-Remaining"])
-                if remaining <= 0:
-                    raise RateLimitError
-            else:
-                msg = f"Request to delete {package_data.url} returned HTTP {resp.status_code}"
-                gha_utils.warning(
-                    message=msg,
-                    title=f"Unexpected delete status: {resp.status_code}",
-                )
-                logger.warning(msg)
+        await self.delete(package_data.url)
 
-    def restore(
+    async def restore(
         self,
         package_name: str,
         id: int,
@@ -152,7 +144,7 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
             PACKAGE_VERSION_ID=id,
         )
 
-        resp = self._client.post(endpoint)
+        resp = await self._client.post(endpoint)
         if resp.status_code != HTTPStatus.NO_CONTENT:
             # If forbidden, check if it is rate limiting
             if resp.status_code == HTTPStatus.FORBIDDEN and "X-RateLimit-Remaining" in resp.headers:
@@ -168,10 +160,10 @@ class _GithubContainerRegistryApiBase(GithubApiBase):
                 logger.warning(msg)
 
 
-class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase):
+class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase[Package]):
     """
     Class wrapper to deal with the GitHub packages API.  This class only deals with
-    container type packages, the only type published by paperless-ngx.
+    container type packages.
     This class is for organizations
     """
 
@@ -184,10 +176,10 @@ class GithubContainerRegistryOrgApi(_GithubContainerRegistryApiBase):
     )
 
 
-class GithubContainerRegistryUserApi(_GithubContainerRegistryApiBase):
+class GithubContainerRegistryUserApi(_GithubContainerRegistryApiBase[Package]):
     """
     Class wrapper to deal with the GitHub packages API.  This class only deals with
-    container type packages, the only type published by paperless-ngx.
+    container type packages.
     This class is for user owned packages
     """
 

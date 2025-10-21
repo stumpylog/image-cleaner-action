@@ -4,18 +4,19 @@ import re
 
 from github.base import GithubApiBase
 from github.base import GithubEndpointResponse
+from github.models.branch import ShortBranch
 
 logger = logging.getLogger(__name__)
 
 
-class GithubBranch(GithubEndpointResponse):
+class GithubBranch(GithubEndpointResponse[ShortBranch]):
     """
     Simple wrapper for a repository branch, only extracts name information
     for now.
     """
 
-    def __init__(self, data: dict) -> None:
-        super().__init__(data)
+    def __init__(self, data: ShortBranch) -> None:
+        super().__init__(data)  # type: ignore[arg-type]
         self.name = self._data["name"]
 
     def __str__(self) -> str:
@@ -26,7 +27,7 @@ class GithubBranch(GithubEndpointResponse):
         return re.match(pattern, self.name) is not None
 
 
-class GithubBranchApi(GithubApiBase):
+class GithubBranchApi(GithubApiBase[ShortBranch]):
     """
     Wrapper around branch API.
 
@@ -39,13 +40,13 @@ class GithubBranchApi(GithubApiBase):
     def __init__(self, token: str) -> None:
         super().__init__(token)
 
-    def branches(self, owner: str, repo: str) -> list[GithubBranch]:
+    async def branches(self, owner: str, repo: str) -> list[GithubBranch]:
         """
         Returns all current branches of the given repository owned by the given
         owner or organization.
         """
         # The environment GITHUB_REPOSITORY already contains the owner in the correct location
-        internal_data = self._read_all_pages(
+        internal_data: list[ShortBranch] = await self.list(
             self.API_ENDPOINT.format(OWNER=owner, REPO=repo),
         )
         return [GithubBranch(branch) for branch in internal_data]

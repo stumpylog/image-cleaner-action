@@ -1,5 +1,7 @@
 import logging
+import math
 from argparse import ArgumentParser
+from typing import Final
 
 
 def get_log_level(level_name: str) -> int:
@@ -86,3 +88,41 @@ def common_args(description: str) -> ArgumentParser:
     )
 
     return parser
+
+
+def bytes_to_human_readable(size_bytes: int | float, precision: int = 2) -> str:
+    """
+    Converts a size in bytes to a human-readable string (e.g., 1024 -> 1.00 KiB).
+
+    Args:
+        size_bytes: The size in bytes (int or float).
+        precision: The number of decimal places for the result.
+
+    Returns:
+        A string representing the size in a human-readable format.
+    """
+    if size_bytes < 0:
+        return "Invalid size"
+    if size_bytes == 0:
+        return "0 Bytes"
+
+    UNITS: Final[list[str]] = ["Bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]
+    BASE: Final[int] = 1024
+
+    try:
+        # Calculate the unit index. math.log2(x) is equivalent to log(x, 2).
+        # Dividing by 10 determines how many times we've passed the 1024 threshold (2^10).
+        unit_index: int = math.floor(math.log2(size_bytes) / 10)
+    except ValueError:
+        # Should only happen if size_bytes is 0 or negative, but included for robustness
+        return "0 Bytes"
+
+    # Ensure the index doesn't go beyond the largest unit defined
+    unit_index = min(unit_index, len(UNITS) - 1)
+
+    # Calculate the converted size
+    converted_size: float = size_bytes / (BASE**unit_index)
+    unit: str = UNITS[unit_index]
+
+    # Format the output string using f-string with a nested f-string for dynamic precision
+    return f"{converted_size:.{precision}f} {unit}"

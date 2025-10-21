@@ -1,11 +1,10 @@
 # This file configures pre-commit hooks.
 # See https://pre-commit.com/ for general information
 # See https://pre-commit.com/hooks.html for a listing of possible hooks
-
 repos:
   # General hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-docstring-first
       - id: check-json
@@ -35,13 +34,19 @@ repos:
           - markdown
   # Python hooks
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.12.7'
+    rev: 'v0.14.1'
     hooks:
       # Run the linter.
-      - id: ruff
+      - id: ruff-check
       # Run the formatter.
       - id: ruff-format
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: "v2.6.0"
+    rev: "v2.11.0"
     hooks:
       - id: pyproject-fmt
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.19.0
+    hooks:
+      - id: yamlfmt
+        types:
+          - yaml

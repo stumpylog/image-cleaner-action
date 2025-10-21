@@ -1,6 +1,6 @@
 [project]
 name = "image-cleaner-action"
-version = "0.11.0"
+version = "0.12.0"
 description = "Tools to cleanup old ghcr.io images when the source is removed"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -8,10 +8,12 @@ classifiers = [
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
   "github-action-utils>=1.1",
   "httpx[brotli,http2]>=0.28",
+  "httpx-retries",
 ]
 
 [dependency-groups]
@@ -21,6 +23,7 @@ dev = [
   "pre-commit",
   "pre-commit-uv",
   "pytest",
+  "pytest-asyncio",
   "pytest-cov",
   "pytest-httpx",
   "pytest-mock",
@@ -28,6 +31,10 @@ dev = [
   "pytest-sugar",
   "ruff",
 ]
+
+[tool.uv]
+package = false
+required-version = ">=0.8.0"
 
 [tool.ruff]
 target-version = "py312"
@@ -60,6 +67,7 @@ lint.extend-select = [
   "UP",
   "W",
 ]
+lint.per-file-ignores."github/models/**" = [ "E501" ]
 # https://docs.astral.sh/ruff/settings/#lintisort
 lint.isort.force-single-line = true
 
@@ -91,6 +99,5 @@ exclude_lines = [
   "if SAVE_OUTPUTS:",
 ]
 
-[tool.uv]
-package = false
-required-version = ">=0.8.0"
+[tool.mypy]
+python_version = "3.12"

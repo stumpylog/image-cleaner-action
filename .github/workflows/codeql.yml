@@ -10,7 +10,6 @@
 # supported CodeQL languages.
 #
 name: "CodeQL"
-
 on:
   push:
     branches:
@@ -20,7 +19,6 @@ on:
       - main
   schedule:
     - cron: '28 13 * * 5'
-
 jobs:
   analyze:
     name: Analyze
@@ -29,16 +27,12 @@ jobs:
       actions: read
       contents: read
       security-events: write
-
     steps:
-    -
-      name: Checkout repository
-      uses: actions/checkout@v4
-    -
-      name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
-      with:
-        languages: "python"
-    -
-      name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: "python"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3

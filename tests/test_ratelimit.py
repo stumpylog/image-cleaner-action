@@ -7,11 +7,8 @@ from github.ratelimit import RateLimits
 
 
 class TestGithubRateLimitApi:
-    @pytest.fixture
-    def api(self, ratelimit_api):
-        return ratelimit_api
-
-    def test_limits(self, httpx_mock, api: GithubRateLimitApi):
+    @pytest.mark.asyncio
+    async def test_limits(self, httpx_mock, ratelimit_api: GithubRateLimitApi):
         response_json = {
             "rate": {
                 "limit": 5000,
@@ -20,7 +17,7 @@ class TestGithubRateLimitApi:
             },
         }
         httpx_mock.add_response(json=response_json)
-        limits = api.limits()
+        limits = await ratelimit_api.limits()
         assert isinstance(limits, RateLimits)
         assert not limits.limited
         assert limits.remaining == 4999
