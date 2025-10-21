@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `uv` caching should now be enabled
 - Much improved rate limit handling
   - All requests now check the `X-RateLimit-Remaining` header and if approaching the limit, utilize `X-RateLimit-Reset` to sleep until it resets
+- Updates `uv` to the 0.9.x branch
 
 ### Fixed
 

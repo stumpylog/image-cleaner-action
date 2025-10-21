@@ -8,6 +8,7 @@ classifiers = [
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
   "github-action-utils>=1.1",
@@ -30,6 +31,10 @@ dev = [
   "pytest-sugar",
   "ruff",
 ]
+
+[tool.uv]
+package = false
+required-version = ">=0.8.0"
 
 [tool.ruff]
 target-version = "py312"
@@ -96,7 +101,3 @@ exclude_lines = [
 
 [tool.mypy]
 python_version = "3.12"
-
-[tool.uv]
-package = false
-required-version = ">=0.8.0"

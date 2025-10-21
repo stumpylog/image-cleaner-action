@@ -24,25 +24,22 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    -
-      name: Install Python
+    - name: Install Python
       uses: actions/setup-python@v6
       id: setup-python
       with:
         python-version: '3.12'
-    -
-      name: Install uv
+    - name: Install uv
       uses: astral-sh/setup-uv@v6.8.0
       with:
-        version: "0.8.x"
+        version: "0.9.x"
         python-version: ${{ steps.setup-python.outputs.python-version }}
         ignore-empty-workdir: true
         enable-cache: true
         cache-dependency-glob: |
           ${{ github.action_path }}/../**/pyproject.toml
           ${{ github.action_path }}/../**/uv.lock
-    -
-      name: Clean the images
+    - name: Clean the images
       shell: bash
       id: untagged-image-clean
       run: |

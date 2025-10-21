@@ -1,9 +1,7 @@
 name: CI
-
 on:
   push:
   pull_request:
-
 jobs:
   lint:
     name: lint
@@ -11,11 +9,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      -
-        name: Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v5
-      -
-        name: Check files
+      - name: Check files
         uses: pre-commit/action@v3.0.1
   tests:
     name: tests
@@ -23,23 +19,19 @@ jobs:
     permissions:
       contents: read
     steps:
-      -
-        name: Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v5
-      -
-        name: Install Python
+      - name: Install Python
         uses: actions/setup-python@v6
         id: setup-python
         with:
           python-version: '3.12'
-      -
-        name: Install uv
+      - name: Install uv
         uses: astral-sh/setup-uv@v6.8.0
         with:
-          version: "0.8.x"
+          version: "0.9.x"
           python-version: ${{ steps.setup-python.outputs.python-version }}
-      -
-        name: Run tests
+      - name: Run tests
         run: |
           uv sync --dev
           uv run pytest
@@ -53,22 +45,18 @@ jobs:
       - lint
       - tests
     steps:
-      -
-        uses: actions/checkout@v5
-      -
-        name: Get latest release info
+      - uses: actions/checkout@v5
+      - name: Get latest release info
         id: query-release-info
         uses: release-flow/keep-a-changelog-action@v3
         with:
           command: query
           version: ${{ github.ref_name }}
-      -
-        name: Display release info
+      - name: Display release info
         run: |
           echo "Version: ${{ steps.query-release-info.outputs.version }}"
           echo "Date: ${{ steps.query-release-info.outputs.release-date }}"
           echo "${{ steps.query-release-info.outputs.release-notes }}"
-      -
-        uses: ncipollo/release-action@v1
+      - uses: ncipollo/release-action@v1
         with:
           body: ${{ steps.query-release-info.outputs.release-notes }}
