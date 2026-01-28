@@ -1,34 +1,29 @@
 #!/usr/bin/env python3
 
 import logging
+from dataclasses import dataclass
 
 import github_action_utils as gha_utils
 import httpx
 
-from github.packages import ContainerPackage
-from github.packages import GithubContainerRegistryOrgApi
-from github.packages import GithubContainerRegistryUserApi
-from github.ratelimit import GithubRateLimitApi
+from github import ContainerPackage
+from github import GithubRateLimitApi
+from github import create_registry_api
 from regtools.images import RegistryClient
 from regtools.images import check_tags_still_valid
 from regtools.images import format_platform
 from regtools.images import is_multi_arch_media_type
-from utils import coerce_to_bool
 from utils import common_args
-from utils import get_log_level
+from utils.config import BaseConfig
 from utils.errors import RateLimitError
+from utils.logging import setup_logging
 
 logger = logging.getLogger("image-cleaner")
 
 
-class Config:
-    def __init__(self, args) -> None:
-        self.token: str = args.token
-        self.owner_or_org: str = args.owner
-        self.is_org = coerce_to_bool(args.is_org)
-        self.package_name: str = args.name
-        self.log_level: int = get_log_level(args.loglevel)
-        self.delete: bool = coerce_to_bool(args.delete)
+@dataclass(slots=True)
+class UntaggedConfig(BaseConfig):
+    pass
 
 
 async def _main() -> None:
@@ -36,16 +31,9 @@ async def _main() -> None:
         "Using the GitHub API locate and optionally delete container images which are untagged",
     )
 
-    config = Config(parser.parse_args())
+    config = UntaggedConfig.from_args(parser.parse_args())
 
-    logging.basicConfig(
-        level=config.log_level,
-        datefmt="%Y-%m-%d %H:%M:%S",
-        format="[%(asctime)s] [%(levelname)-8s] [%(name)-10s] %(message)s",
-    )
-    # https likes to log at INFO, reduce that
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    setup_logging(config.log_level)
 
     logger.info("Starting processing")
 
@@ -65,12 +53,7 @@ async def _main() -> None:
     #
     # Step 1 - gather the active package information
     #
-    container_reg_class = GithubContainerRegistryOrgApi if config.is_org else GithubContainerRegistryUserApi
-    async with container_reg_class(
-        config.token,
-        config.owner_or_org,
-        config.is_org,
-    ) as api:
+    async with create_registry_api(config.token, config.owner_or_org, is_org=config.is_org) as api:
         logger.info("Getting active packages")
         # Get the active (not deleted) packages
         active_versions = await api.active_versions(config.package_name)
@@ -138,11 +121,7 @@ async def _main() -> None:
     #
     # Delete the untagged and not pointed at packages
     logger.info(f"Deleting untagged packages of {config.package_name}")
-    async with container_reg_class(
-        config.token,
-        config.owner_or_org,
-        config.is_org,
-    ) as api:
+    async with create_registry_api(config.token, config.owner_or_org, is_org=config.is_org) as api:
         for to_delete_name, to_delete_version in untagged_versions.items():
             if config.delete:
                 logger.info(

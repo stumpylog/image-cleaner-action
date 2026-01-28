@@ -2,45 +2,61 @@
 
 import logging
 import re
+from argparse import Namespace
+from dataclasses import dataclass
+from dataclasses import field
 
 import github_action_utils as gha_utils
 
-from github.branches import GithubBranchApi
-from github.packages import ContainerPackage
-from github.packages import GithubContainerRegistryOrgApi
-from github.packages import GithubContainerRegistryUserApi
-from github.pullrequest import GithubPullRequestApi
-from github.ratelimit import GithubRateLimitApi
+from github import ContainerPackage
+from github import GithubBranchApi
+from github import GithubPullRequestApi
+from github import GithubRateLimitApi
+from github import create_registry_api
 from regtools.images import check_tags_still_valid
-from utils import coerce_to_bool
 from utils import common_args
-from utils import get_log_level
+from utils.config import BaseConfig
+from utils.config import Scheme
 from utils.errors import RateLimitError
+from utils.logging import setup_logging
 
 logger = logging.getLogger("image-cleaner")
 
 
-class Config:
-    def __init__(self, args) -> None:
-        self.token: str = args.token
-        self.owner_or_org: str = args.owner
-        self.is_org = coerce_to_bool(args.is_org)
-        self.package_name: str = args.name
-        self.log_level: int = get_log_level(args.loglevel)
-        self.delete: bool = coerce_to_bool(args.delete)
-        self.scheme: str = args.scheme.lower()
-        self.repo: str = args.repo
-        self.match_regex: str = args.match_regex
+@dataclass(slots=True)
+class EphemeralConfig(BaseConfig):
+    """Configuration for ephemeral image cleanup."""
 
-        # Validate
-        if self.scheme not in {"branch", "pull_request"}:
-            raise ValueError(f"{self.scheme} is not a valid option")
-        if len(self.match_regex):
-            re.compile(self.match_regex)
+    scheme: Scheme = Scheme.BRANCH
+    repo: str = ""
+    match_regex: str = ""
+    _compiled_regex: re.Pattern[str] | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        # Validate and normalize scheme
+        self.scheme = Scheme(self.scheme.lower())
+        # Compile regex for validation and reuse
+        if self.match_regex:
+            self._compiled_regex = re.compile(self.match_regex)
+
+    @classmethod
+    def from_args(cls, args: Namespace) -> "EphemeralConfig":
+        return cls(
+            token=args.token,
+            owner_or_org=args.owner,
+            package_name=args.name,
+            _raw_delete=args.delete,
+            _raw_is_org=args.is_org,
+            _raw_log_level=args.loglevel,
+            scheme=args.scheme,
+            repo=args.repo,
+            match_regex=args.match_regex,
+        )
 
 
 async def _get_tags_to_delete_pull_request(
-    args: Config,
+    args: EphemeralConfig,
     matched_packages: list[ContainerPackage],
 ) -> list[str]:
     """
@@ -76,7 +92,7 @@ async def _get_tags_to_delete_pull_request(
 
 
 async def _get_tag_to_delete_branch(
-    args: Config,
+    args: EphemeralConfig,
     matched_packages: list[ContainerPackage],
 ) -> list[str]:
     """
@@ -130,15 +146,9 @@ async def _main() -> None:
         required=True,
     )
 
-    config = Config(parser.parse_args())
+    config = EphemeralConfig.from_args(parser.parse_args())
 
-    logging.basicConfig(
-        level=config.log_level,
-        datefmt="%Y-%m-%d %H:%M:%S",
-        format="[%(asctime)s] [%(levelname)-8s] [%(name)-10s] %(message)s",
-    )
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    setup_logging(config.log_level)
 
     logger.info("Starting processing")
 
@@ -155,12 +165,7 @@ async def _main() -> None:
     #
     # Step 1 - gather the active package information
     #
-    container_reg_class = GithubContainerRegistryOrgApi if config.is_org else GithubContainerRegistryUserApi
-    async with container_reg_class(
-        config.token,
-        config.owner_or_org,
-        config.is_org,
-    ) as api:
+    async with create_registry_api(config.token, config.owner_or_org, is_org=config.is_org) as api:
         logger.info("Getting active packages")
         # Get the active (not deleted) packages
         active_versions = await api.active_versions(config.package_name)
@@ -211,11 +216,7 @@ async def _main() -> None:
     # Step 4 - Delete the stale packages
     #
     # TODO: This is a candidate for concurrency with limits
-    async with container_reg_class(
-        config.token,
-        config.owner_or_org,
-        config.is_org,
-    ) as api:
+    async with create_registry_api(config.token, config.owner_or_org, is_org=config.is_org) as api:
         for to_delete_name in tags_to_delete:
             to_delete_version = all_pkgs_tags_to_version[to_delete_name]
 

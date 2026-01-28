@@ -1,4 +1,3 @@
-import functools
 import logging
 import re
 
@@ -22,7 +21,6 @@ class GithubBranch(GithubEndpointResponse[ShortBranch]):
     def __str__(self) -> str:
         return f"Branch {self.name}"
 
-    @functools.cache
     def matches(self, pattern: str) -> bool:
         return re.match(pattern, self.name) is not None
 

@@ -13,6 +13,7 @@ import logging
 import re
 import time
 from http import HTTPStatus
+from typing import Self
 from typing import TypeVar
 
 import github_action_utils as gha_utils
@@ -55,7 +56,7 @@ class GithubApiBase[BaseT]:
             },
         )
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -186,28 +187,31 @@ class GithubApiBase[BaseT]:
 
         logger.debug(f"Found {last_page} total pages, fetching pages 2-{last_page} concurrently")
 
+        # Fetch all pages concurrently with a semaphore to limit concurrency
+        semaphore = asyncio.Semaphore(10)  # Max 10 concurrent requests
+
+        async def run(page: int) -> None:
+            async with semaphore:
+                page_num, page_data = await self._fetch_page(
+                    endpoint,
+                    {**query_params, "page": page},
+                    page,
+                )
+            all_data[page_num] = page_data
+
+        async with asyncio.TaskGroup() as tg:
+            for page in range(2, last_page + 1):
+                tg.create_task(run(page))
+
         # Create tasks for remaining pages
         tasks = []
         for page in range(2, last_page + 1):
             page_params = {**query_params, "page": page}
             tasks.append(self._fetch_page(endpoint, page_params, page))
 
-        # Fetch all pages concurrently with a semaphore to limit concurrency
-        semaphore = asyncio.Semaphore(10)  # Max 10 concurrent requests
+        combined_data: list[BaseT] = []
 
-        async def fetch_with_semaphore(task):
-            async with semaphore:
-                return await task
-
-        results = await asyncio.gather(*[fetch_with_semaphore(task) for task in tasks])
-
-        # Add results to our data dict
-        for page_num, page_data in results:
-            all_data[page_num] = page_data
-
-        # Combine all pages in order
-        combined_data = []
-        for page in sorted(all_data.keys()):
+        for page in sorted(all_data):
             combined_data.extend(all_data[page])
 
         return combined_data

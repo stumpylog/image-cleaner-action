@@ -34,7 +34,7 @@ This action plays nicely with the untagged cleaner, as un-versioning doesn't rem
 
 ### Usage
 
-For details on using the action, see [the README for the action](./untagged/README.md)
+For details on using the action, see [the README for the action](./ephemeral/README.md)
 
 ## Untagged Images Cleanup
 
@@ -65,4 +65,4 @@ This action therefore handles deleting the untagged package versions using the R
 
 ### Usage
 
-For details on using the action, see [the README for the action](./ephemeral/README.md)
+For details on using the action, see [the README for the action](./untagged/README.md)

@@ -15,7 +15,7 @@ class PullRequest(GithubEndpointResponse[SimplePullRequest]):
         return self.state.lower() == "closed"
 
 
-class GithubPullRequestApi(GithubApiBase):
+class GithubPullRequestApi(GithubApiBase[SimplePullRequest]):
     GET_PR_API_ENDPOINT = "/repos/{OWNER}/{REPO}/pulls/{PULL_NUMBER}"
     LIST_PR_API_ENDPOINT = "/repos/{OWNER}/{REPO}/pulls"
 

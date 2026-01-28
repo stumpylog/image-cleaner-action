@@ -190,3 +190,15 @@ class GithubContainerRegistryUserApi(_GithubContainerRegistryApiBase[Package]):
     PACKAGE_VERSION_RESTORE_ENDPOINT = (
         "/user/packages/{PACKAGE_TYPE}/{PACKAGE_NAME}/versions/{PACKAGE_VERSION_ID}/restore"
     )
+
+
+def create_registry_api(
+    token: str,
+    owner: str,
+    *,
+    is_org: bool,
+) -> GithubContainerRegistryOrgApi | GithubContainerRegistryUserApi:
+    """Factory to create the appropriate registry API based on owner type."""
+    if is_org:
+        return GithubContainerRegistryOrgApi(token, owner, is_org=True)
+    return GithubContainerRegistryUserApi(token, owner, is_org=False)

@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Errors when checking all tags and manifests are now logged, instead of just the first
+
 ### Changed
 
 - Updates Python version to 3.13.x
+- Updates to use `asyncio.TaskGroup` instead of `asyncio.gather`
+
+### Fixed
+
+- Links to documentation of each action were swapped
+- Typing of GithubPullRequestApi was incorrect
 
 ## [0.12.0] - 2025-10-21
 

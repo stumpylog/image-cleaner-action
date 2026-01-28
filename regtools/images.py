@@ -225,7 +225,7 @@ def format_platform(platform_data: Mapping[str, Any]) -> str:
 
 
 async def _check_single_tag(
-    client,
+    client: RegistryClient,
     repository: str,
     tag: str,
     tag_semaphore: asyncio.Semaphore,
@@ -233,47 +233,63 @@ async def _check_single_tag(
 ) -> bool:
     """
     Check a single tag:
-      - limit concurrent *tag manifest* fetches with `tag_semaphore`
-      - limit concurrent *digest* checks with `digest_semaphore` (used when scheduling _check_digest)
-    Returns True if the tag and any digests are valid, False otherwise.
+      - limit concurrent tag manifest fetches with tag_semaphore
+      - limit concurrent digest checks with digest_semaphore
+    Returns True if the tag and all its digests are valid, False otherwise.
+    Logs all failing digests.
     """
     qualified_name = f"{repository}:{tag}"
     try:
         logger.info(f"Checking {qualified_name}")
-        # Limit concurrent manifest requests
+
+        # Fetch root manifest
         async with tag_semaphore:
             root_manifest = await client.get_manifest(repository, tag)
 
-        # If the manifest is an image index / multi-arch, gather manifests from descriptors.
-        # Otherwise treat root_manifest itself as the manifest descriptor list of one.
-        digest_tasks = []
-        if is_multi_arch_media_type(root_manifest):
-            manifests = root_manifest.get("manifests", []) or []
+        # Collect failing digests
+        failing_digests: list[str] = []
+
+        # Helper to check a single digest
+        async def check_digest_task(digest: str, platform: str):
+            try:
+                ok = await _check_digest_is_valid(client, repository, digest, platform, tag, digest_semaphore)
+                if not ok:
+                    failing_digests.append(digest)
+            except Exception as exc:
+                logger.warning(
+                    "Digest check for %s:%s (%s) raised exception: %s",
+                    repository,
+                    tag,
+                    digest,
+                    exc,
+                )
+                failing_digests.append(digest)
+
+        # Single-platform image → nothing more to do
+        if not is_multi_arch_media_type(root_manifest):
+            logger.info(f"{qualified_name} is a single-platform image, check successful.")
+            return True
+
+        # Multi-arch image -> spawn digest tasks
+        manifests = root_manifest.get("manifests", []) or []
+        async with asyncio.TaskGroup() as tg:
             for manifest_descriptor in manifests:
                 digest = manifest_descriptor.get("digest")
                 media_type = manifest_descriptor.get("mediaType", "")
                 if not digest or media_type not in MANIFEST_MEDIA_TYPES:
                     continue
                 platform = format_platform(manifest_descriptor.get("platform", {}))
-                # schedule digest checks; these calls will themselves use digest_semaphore
-                digest_tasks.append(
-                    _check_digest_is_valid(client, repository, digest, platform, tag, digest_semaphore),
-                )
-        else:
-            # This is a single-platform image, and we've already fetched it.
-            logger.info(f"{qualified_name} is a single-platform image, check successful.")
+                tg.create_task(check_digest_task(digest, platform))
 
-        # run digest checks (bounded by digest_semaphore inside _check_digest)
-        if digest_tasks:
-            results = await asyncio.gather(*digest_tasks, return_exceptions=True)
-            # Any failure/False => tag considered invalid
-            for r in results:
-                if isinstance(r, Exception):
-                    logger.warning(f"Digest check for {qualified_name} returned exception: {r}")
-                    return False
-                if r is not True:
-                    # r is falsy (False or None) -> treat as invalid
-                    return False
+        # Return True only if all digests passed
+        if failing_digests:
+            logger.warning(
+                "Tag %s has failing digests: %s",
+                qualified_name,
+                ", ".join(failing_digests),
+            )
+            return False
+
         return True
 
     except Exception as exc:
@@ -314,32 +330,58 @@ async def check_tags_still_valid(
     tag_concurrency: int = 10,
     digest_concurrency: int = 5,
 ) -> None:
-    """
-    Checks if a list of tags and all their referenced image manifests are still valid
-    by fetching them directly from the registry API.
-
-    Tags are checked with concurrency limited to 10 requests at a time, with digests limited to 5 at a time
-    """
     repository = f"{owner}/{name}"
 
     async with RegistryClient(host="ghcr.io") as client:
-        # Semaphores to bound concurrency
         tag_semaphore = asyncio.BoundedSemaphore(tag_concurrency)
         digest_semaphore = asyncio.BoundedSemaphore(digest_concurrency)
 
-        # Check all tags with limited concurrency
-        tag_tasks = [
-            _check_single_tag(client, repository, tag, tag_semaphore, digest_semaphore) for tag in tags
-        ]
-        results = await asyncio.gather(*tag_tasks, return_exceptions=True)
+        invalid_tags: list[str] = []
+        errors: list[tuple[str, Exception]] = []
 
-        # Check if any failures occurred
-        any_tag_failed = not all(r is True for r in results)
+        async def check_tag_and_capture_failure(tag: str) -> None:
+            try:
+                ok = await _check_single_tag(
+                    client,
+                    repository,
+                    tag,
+                    tag_semaphore,
+                    digest_semaphore,
+                )
+                if not ok:
+                    invalid_tags.append(tag)
+            except Exception as exc:
+                errors.append((tag, exc))
 
-    if any_tag_failed:
-        msg = "One or more tags or their digests failed to inspect and may no longer be valid."
-        logger.error(msg)
+        async with asyncio.TaskGroup() as tg:
+            for tag in tags:
+                tg.create_task(check_tag_and_capture_failure(tag))
+
+    if invalid_tags or errors:
+        for tag in invalid_tags:
+            logger.error(
+                "Tag %s:%s is no longer valid",
+                repository,
+                tag,
+            )
+
+        for tag, exc in errors:
+            logger.exception(
+                "Error verifying tag %s:%s",
+                repository,
+                tag,
+                exc_info=exc,
+            )
+
+        msg = (
+            f"{len(invalid_tags)} invalid tag(s) and "
+            f"{len(errors)} error(s) encountered while verifying "
+            f"tags for {repository}."
+        )
         gha_utils.error(msg, title="Possible registry problems")
         raise Exception(msg)
-    else:
-        logger.info(f"Successfully verified all tags for {repository} and all their digests.")
+
+    logger.info(
+        "Successfully verified all tags for %s and all their digests.",
+        repository,
+    )
