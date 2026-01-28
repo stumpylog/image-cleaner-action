@@ -10,7 +10,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Check files
         uses: pre-commit/action@v3.0.1
   tests:
@@ -20,7 +20,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Install Python
         uses: actions/setup-python@v6
         id: setup-python
@@ -45,7 +45,7 @@ jobs:
       - lint
       - tests
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Get latest release info
         id: query-release-info
         uses: release-flow/keep-a-changelog-action@v3
