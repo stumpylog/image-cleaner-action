@@ -9,6 +9,12 @@ updates:
       interval: "weekly"
     labels:
       - "dependencies"
+    cooldown:
+      default-days: 14
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
   # Enable updates for Github Actions
   - package-ecosystem: "github-actions"
     target-branch: "develop"
@@ -17,3 +23,9 @@ updates:
       interval: "monthly"
     labels:
       - "dependencies"
+    cooldown:
+      default-days: 14
+    groups:
+      github-actions:
+        patterns:
+          - "*"
