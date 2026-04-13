@@ -11,7 +11,7 @@ classifiers = [
 ]
 dependencies = [
   "github-action-utils>=1.1",
-  "httpx[brotli,http2]>=0.28",
+  "httpx[brotli,http2]>=0.28.1",
   "httpx-retries",
 ]
 
