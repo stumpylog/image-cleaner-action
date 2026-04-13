@@ -367,7 +367,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "github-action-utils", specifier = ">=1.1" },
-    { name = "httpx", extras = ["brotli", "http2"], specifier = ">=0.28" },
+    { name = "httpx", extras = ["brotli", "http2"], specifier = ">=0.28.1" },
     { name = "httpx-retries" },
 ]
 
