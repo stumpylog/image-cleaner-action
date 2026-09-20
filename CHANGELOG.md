@@ -9,8 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.13.0] - 2026-09-20
 
+### Added
+
+- Errors when checking all tags and manifests are now logged, instead of just the first
+
 ### Changed
 
+- Updates Python version to 3.13.x
+- Updates to use `asyncio.TaskGroup` instead of `asyncio.gather`
 - Pins all GitHub Actions to specific commit SHAs for improved security, including the CodeQL workflow
 - Bumps `actions/checkout` to v7.0.1
 - Bumps `actions/setup-python` to v7.0.0
@@ -24,24 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Verification failures now raise `ImageVerificationError` instead of a bare `Exception`
-- Removes `lru_cache` from a method, which could keep package instances alive
-
-## [0.12.0] - 2025-10-03
-
-### Added
-
-- Errors when checking all tags and manifests are now logged, instead of just the first
-
-### Changed
-
-- Updates Python version to 3.13.x
-- Updates to use `asyncio.TaskGroup` instead of `asyncio.gather`
-
-### Fixed
-
 - Links to documentation of each action were swapped
 - Typing of GithubPullRequestApi was incorrect
+- Verification failures now raise `ImageVerificationError` instead of a bare `Exception`
+- Removes `lru_cache` from a method, which could keep package instances alive
 
 ## [0.12.0] - 2025-10-21
 
