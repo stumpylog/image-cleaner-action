@@ -8,6 +8,7 @@ classifiers = [
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
 ]
 dependencies = [
   "github-action-utils>=1.1",
@@ -32,8 +33,8 @@ dev = [
 ]
 
 [tool.uv]
-package = false
 required-version = ">=0.9.0"
+package = false
 
 [tool.ruff]
 target-version = "py313"
@@ -42,7 +43,6 @@ respect-gitignore = true
 # https://docs.astral.sh/ruff/settings/
 fix = true
 show-fixes = true
-
 output-format = "grouped"
 # https://docs.astral.sh/ruff/rules/
 lint.extend-select = [
@@ -71,33 +71,29 @@ lint.per-file-ignores."github/models/**" = [ "E501" ]
 # https://docs.astral.sh/ruff/settings/#lintisort
 lint.isort.force-single-line = true
 
-[tool.pytest]
-minversion = "9.0"
-testpaths = [ "tests" ]
-pythonpath = [ "." ]
-addopts = [ "--import-mode=importlib", "--cov" ]
+[tool.mypy]
+python_version = "3.13"
 
-[tool.coverage.run]
-source_pkgs = [ "github", "regtools", "utils", "tests" ]
-branch = true
-parallel = true
-omit = [
+[tool.pytest]
+addopts = [ "--import-mode=importlib", "--cov" ]
+minversion = "9.0"
+pythonpath = [ "." ]
+testpaths = [ "tests" ]
+
+[tool.coverage]
+run.source_pkgs = [ "github", "regtools", "tests", "utils" ]
+run.omit = [
   "src/version/__init__.py",
   "tests/conftest.py",
   "tests/utils.py",
 ]
-
-[tool.coverage.paths]
-actions = [ "github", "regtools", "utils" ]
-tests = [ "tests" ]
-
-[tool.coverage.report]
-exclude_lines = [
-  "no cov",
+run.branch = true
+run.parallel = true
+paths.actions = [ "github", "regtools", "utils" ]
+paths.tests = [ "tests" ]
+report.exclude_lines = [
   "if __name__ == '__main__':",
-  "if TYPE_CHECKING:",
   "if SAVE_OUTPUTS:",
+  "if TYPE_CHECKING:",
+  "no cov",
 ]
-
-[tool.mypy]
-python_version = "3.12"

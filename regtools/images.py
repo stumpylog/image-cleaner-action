@@ -20,6 +20,7 @@ from regtools.models import DockerManifestList
 from regtools.models import DockerManifestV2
 from regtools.models import OCIImageIndex
 from regtools.models import OCIManifest
+from utils.errors import ImageVerificationError
 
 # Constants for media types and the HTTP Accept header
 OCI_INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
@@ -255,7 +256,7 @@ async def _check_single_tag(
                 ok = await _check_digest_is_valid(client, repository, digest, platform, tag, digest_semaphore)
                 if not ok:
                     failing_digests.append(digest)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - one failed digest must not cancel the group
                 logger.warning(
                     "Digest check for %s:%s (%s) raised exception: %s",
                     repository,
@@ -292,8 +293,8 @@ async def _check_single_tag(
 
         return True
 
-    except Exception as exc:
-        logger.exception("Failed checking %s: %s", qualified_name, exc)
+    except Exception:
+        logger.exception("Failed checking %s", qualified_name)
         return False
 
 
@@ -350,7 +351,7 @@ async def check_tags_still_valid(
                 )
                 if not ok:
                     invalid_tags.append(tag)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - collect per-tag errors, report them together
                 errors.append((tag, exc))
 
         async with asyncio.TaskGroup() as tg:
@@ -379,7 +380,7 @@ async def check_tags_still_valid(
             f"tags for {repository}."
         )
         gha_utils.error(msg, title="Possible registry problems")
-        raise Exception(msg)
+        raise ImageVerificationError(msg)
 
     logger.info(
         "Successfully verified all tags for %s and all their digests.",

@@ -90,7 +90,7 @@ def common_args(description: str) -> ArgumentParser:
     return parser
 
 
-def bytes_to_human_readable(size_bytes: int | float, precision: int = 2) -> str:
+def bytes_to_human_readable(size_bytes: float, precision: int = 2) -> str:
     """
     Converts a size in bytes to a human-readable string (e.g., 1024 -> 1.00 KiB).
 

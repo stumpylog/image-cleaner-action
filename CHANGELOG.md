@@ -9,11 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Pins all GitHub Actions to specific commit SHAs for improved security
-- Bumps `actions/checkout` to v6.0.2
-- Bumps `actions/setup-python` to v6.2.0
-- Bumps `astral-sh/setup-uv` to v8.0.0
-- Switches CI linting from `pre-commit/action` to `j178/prek-action` v2.0.1
+- Pins all GitHub Actions to specific commit SHAs for improved security, including the CodeQL workflow
+- Bumps `actions/checkout` to v7.0.1
+- Bumps `actions/setup-python` to v7.0.0
+- Bumps `astral-sh/setup-uv` to v10.1.0
+- Switches CI linting from `pre-commit/action` to `j178/prek-action` v3.0.0
+- Updates the pinned `uv` version to 0.12.x
+- Updates locked dependencies, including `httpx-retries` 0.6.0
+- Updates pre-commit hooks, including ruff v0.16.8
+- The API rate limit reset time is now timezone aware (UTC)
+- Sets the mypy target Python version to 3.13 to match `requires-python`
+
+### Fixed
+
+- Verification failures now raise `ImageVerificationError` instead of a bare `Exception`
+- Removes `lru_cache` from a method, which could keep package instances alive
 
 ## [0.12.0] - 2025-10-03
 

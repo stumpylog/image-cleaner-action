@@ -1,3 +1,4 @@
+from datetime import UTC
 from datetime import datetime
 
 import pytest
@@ -21,4 +22,4 @@ class TestGithubRateLimitApi:
         assert isinstance(limits, RateLimits)
         assert not limits.limited
         assert limits.remaining == 4999
-        assert limits.reset_time == datetime.fromtimestamp(1234567890)
+        assert limits.reset_time == datetime.fromtimestamp(1234567890, tz=UTC)

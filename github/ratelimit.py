@@ -1,3 +1,4 @@
+from datetime import UTC
 from datetime import datetime
 
 from github.base import GithubApiBase
@@ -10,7 +11,7 @@ class RateLimits(GithubEndpointResponse[RateLimitOverview]):
         super().__init__(data)  # type: ignore[arg-type]
         self.limit = self._data["rate"]["limit"]
         self.remaining = self._data["rate"]["remaining"]
-        self.reset_time = datetime.fromtimestamp(self._data["rate"]["reset"])
+        self.reset_time = datetime.fromtimestamp(self._data["rate"]["reset"], tz=UTC)
 
     @property
     def limited(self) -> bool:
