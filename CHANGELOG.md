@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-20
+
 ### Changed
 
 - Pins all GitHub Actions to specific commit SHAs for improved security, including the CodeQL workflow
