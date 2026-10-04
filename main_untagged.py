@@ -16,7 +16,7 @@ from regtools.images import is_multi_arch_media_type
 from utils import common_args
 from utils.config import BaseConfig
 from utils.errors import RateLimitError
-from utils.logging import setup_logging
+from utils.log import setup_logging
 
 logger = logging.getLogger("image-cleaner")
 

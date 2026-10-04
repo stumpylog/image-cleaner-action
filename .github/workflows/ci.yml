@@ -48,6 +48,10 @@ jobs:
         run: |
           uv sync --dev
           uv run pytest
+      - name: Smoke test entry points
+        run: |
+          uv run python main_ephemeral.py --help
+          uv run python main_untagged.py --help
   create-release:
     name: Release
     runs-on: ubuntu-latest

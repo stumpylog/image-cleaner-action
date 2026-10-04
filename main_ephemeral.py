@@ -18,7 +18,7 @@ from utils import common_args
 from utils.config import BaseConfig
 from utils.config import Scheme
 from utils.errors import RateLimitError
-from utils.logging import setup_logging
+from utils.log import setup_logging
 
 logger = logging.getLogger("image-cleaner")
 
@@ -33,7 +33,7 @@ class EphemeralConfig(BaseConfig):
     _compiled_regex: re.Pattern[str] | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        BaseConfig.__post_init__(self)
         # Validate and normalize scheme
         self.scheme = Scheme(self.scheme.lower())
         # Compile regex for validation and reuse

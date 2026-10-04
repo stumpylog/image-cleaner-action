@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - CI validates the changelog format on every push, so problems are found before tagging a release
+- Tests for the entry point modules and config construction, plus a CI smoke test of both entry points
+
+### Fixed
+
+- Crash on startup (`module 'utils.logging' has no attribute 'CRITICAL'`) caused by `utils/logging.py` shadowing the stdlib `logging` module inside `utils`, which is now `utils/log.py`
+- Config classes no longer use zero-argument `super()` inside `slots=True` dataclasses, which fails on some Python 3.13 releases
 
 ## [0.13.0] - 2026-09-20
 
