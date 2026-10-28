@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updates Python dependencies, pre-commit hooks, and the pinned GitHub Actions used by CI and by both composite actions
+- Dependabot now also updates pre-commit hooks and the actions pinned in `ephemeral/action.yml` and `untagged/action.yml`
+
 ## [0.13.1] - 2026-10-04
 
 ### Added
