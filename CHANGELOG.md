@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `AGENTS.md` documenting the repository for AI coding agents, with `CLAUDE.md` symlinked to it
+
 ### Changed
 
-- Updates Python dependencies, pre-commit hooks, and the pinned GitHub Actions used by CI and by both composite actions
+- Bump `github-action-utils` from 1.1.0 to 2.0.0
+- Bump dev dependencies, including `ruff` to 0.17.3, `mypy` to 2.4.0, `pytest` to 9.2.0, and `pre-commit` to 4.7.0
+- Bump pre-commit hooks (`ruff`, `prettier`, `pyproject-fmt`) and the pinned GitHub Actions (`setup-python`, `setup-uv`, `prek-action`, `codeql-action`)
 - Dependabot now also updates pre-commit hooks and the actions pinned in `ephemeral/action.yml` and `untagged/action.yml`
 
 ## [0.13.1] - 2026-10-04
