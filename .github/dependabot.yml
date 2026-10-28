@@ -18,7 +18,10 @@ updates:
   # Enable updates for Github Actions
   - package-ecosystem: "github-actions"
     target-branch: "develop"
-    directory: "/"
+    directories:
+      - "/"
+      - "/ephemeral"
+      - "/untagged"
     schedule:
       interval: "monthly"
     labels:
@@ -27,5 +30,19 @@ updates:
       default-days: 14
     groups:
       github-actions:
+        patterns:
+          - "*"
+  # Enable updates for pre-commit hooks
+  - package-ecosystem: "pre-commit"
+    target-branch: "develop"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+    cooldown:
+      default-days: 14
+    groups:
+      pre-commit-hooks:
         patterns:
           - "*"
